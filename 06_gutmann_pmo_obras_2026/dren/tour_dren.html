@@ -1,0 +1,529 @@
+<meta charset="utf-8">
+<title>Recorrido Pozo Dren NEWAIR</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@500;600;700&family=IBM+Plex+Sans:wght@400;500;600&display=swap">
+<style>
+/* Sala de proyección de obra: el modelo ocupa toda la pantalla; leyenda tipo subtítulo y un reproductor abajo */
+:root{
+  --bg:#e6e9e4;--escena:#dde2dc;--panel:#f7f8f5;--fg:#1c2421;--muted:#5b6862;--line:#ccd3cc;
+  --accent:#1d5c74;--accent-fg:#ffffff;--obra:#d9772b;--velo:rgba(247,248,245,.86);
+  --sombra:0 8px 28px rgba(20,32,28,.18);
+  --f-display:"Barlow Condensed","Arial Narrow",system-ui,sans-serif;
+  --f-body:"IBM Plex Sans",system-ui,-apple-system,"Segoe UI",sans-serif;
+}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){
+  --bg:#121715;--escena:#1b2220;--panel:#1a201e;--fg:#e4eae6;--muted:#97a49d;--line:#2f3934;
+  --accent:#7cc2dc;--accent-fg:#0b1a20;--obra:#f0a061;--velo:rgba(26,32,30,.86);
+  --sombra:0 8px 28px rgba(0,0,0,.5);color-scheme:dark}}
+:root[data-theme="dark"]{
+  --bg:#121715;--escena:#1b2220;--panel:#1a201e;--fg:#e4eae6;--muted:#97a49d;--line:#2f3934;
+  --accent:#7cc2dc;--accent-fg:#0b1a20;--obra:#f0a061;--velo:rgba(26,32,30,.86);
+  --sombra:0 8px 28px rgba(0,0,0,.5);color-scheme:dark}
+*{box-sizing:border-box}
+html,body{height:100%}
+body{background:var(--bg);color:var(--fg);font:15px/1.5 var(--f-body);overflow:hidden;
+  padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px))}
+button{font:inherit;color:inherit;cursor:pointer}
+button:focus-visible,input:focus-visible,summary:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+#vista{position:fixed;inset:0;background:var(--escena);touch-action:none}
+#vista canvas{display:block;width:100%;height:100%}
+
+.cab{position:fixed;z-index:5;left:0;right:0;top:0;display:flex;align-items:center;gap:12px;
+  padding:calc(10px + env(safe-area-inset-top,0px)) max(16px,env(safe-area-inset-right,0px)) 10px max(16px,env(safe-area-inset-left,0px));
+  background:var(--velo);backdrop-filter:blur(8px);border-bottom:1px solid var(--line)}
+.cab .tit{flex:1;min-width:0}
+.cab h1{font:600 22px/1.05 var(--f-display);letter-spacing:.01em;margin:0;text-wrap:balance}
+.cab .sub{font-size:12px;color:var(--muted);letter-spacing:.04em;text-transform:uppercase}
+.btn{border:1px solid var(--line);background:var(--panel);border-radius:8px;padding:7px 12px;font-size:14px;display:inline-flex;align-items:center;gap:6px;white-space:nowrap}
+.btn[aria-pressed="true"]{background:var(--accent);color:var(--accent-fg);border-color:var(--accent)}
+
+.leyenda{position:fixed;z-index:4;left:max(16px,env(safe-area-inset-left,0px));top:calc(78px + env(safe-area-inset-top,0px));
+  width:250px;max-height:calc(100% - 210px - env(safe-area-inset-top,0px) - env(safe-area-inset-bottom,0px));overflow-y:auto;background:var(--velo);backdrop-filter:blur(8px);border:1px solid var(--line);
+  border-left:4px solid var(--obra);border-radius:10px;padding:12px 16px;box-shadow:var(--sombra)}
+.leyenda .num{font:600 13px var(--f-display);letter-spacing:.12em;text-transform:uppercase;color:var(--obra)}
+.leyenda h2{font:600 26px/1.05 var(--f-display);margin:2px 0 6px;text-wrap:balance}
+.leyenda p{margin:0;font-size:14px}
+
+.player{position:fixed;z-index:5;left:0;right:0;bottom:0;background:var(--velo);backdrop-filter:blur(8px);border-top:1px solid var(--line);
+  padding:10px max(16px,env(safe-area-inset-right,0px)) calc(10px + env(safe-area-inset-bottom,0px)) max(16px,env(safe-area-inset-left,0px));
+  display:flex;flex-direction:column;gap:8px}
+.linea{position:relative;height:30px}
+.linea input{position:absolute;inset:8px 0 auto;width:100%;margin:0;accent-color:var(--accent);height:14px}
+.tramos{position:absolute;left:0;right:0;top:0;height:6px;display:flex;gap:2px}
+.tramos button{border:0;padding:0;height:6px;border-radius:3px;background:var(--line);flex:var(--d) 1 0;min-width:4px}
+.tramos button.on{background:var(--obra)}
+.ctrl{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+.ctrl .play{width:46px;height:40px;justify-content:center;font-size:18px;background:var(--accent);color:var(--accent-fg);border-color:var(--accent)}
+.tiempo{font:500 14px var(--f-body);font-variant-numeric:tabular-nums;color:var(--muted);padding:0 4px}
+.cap-actual{font:600 16px var(--f-display);letter-spacing:.02em;min-width:0;flex:1;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+
+.caps[hidden]{display:none}
+.caps{position:fixed;z-index:6;top:0;right:0;bottom:0;width:min(380px,100%);background:var(--panel);border-left:1px solid var(--line);box-shadow:var(--sombra);
+  display:flex;flex-direction:column;padding:calc(14px + env(safe-area-inset-top,0px)) max(16px,env(safe-area-inset-right,0px)) calc(14px + env(safe-area-inset-bottom,0px)) 16px}
+.caps-cab{display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:8px}
+.caps-cab h2{font:600 24px var(--f-display);margin:0}
+.caps ol{list-style:none;margin:0;padding:0;overflow-y:auto;display:flex;flex-direction:column;gap:2px;min-height:0}
+.caps li{border-top:1px solid var(--line);padding:10px 0}
+.caps .ir{display:grid;grid-template-columns:auto 1fr auto;gap:10px;align-items:baseline;width:100%;text-align:left;border:0;background:none;padding:2px 0}
+.caps .ir .n{font:600 15px var(--f-display);color:var(--obra);font-variant-numeric:tabular-nums}
+.caps .ir .t{font:600 19px/1.15 var(--f-display)}
+.caps .ir .d{font-size:13px;color:var(--muted);font-variant-numeric:tabular-nums}
+.caps li.on .ir .t{color:var(--accent)}
+.caps details{margin:6px 0 0 26px;font-size:14px}
+.caps summary{color:var(--muted);font-size:13px;letter-spacing:.04em;text-transform:uppercase}
+.caps ul{margin:6px 0 0;padding-left:18px;color:var(--fg)}
+.caps ul li{border:0;padding:1px 0}
+.nota{font-size:12px;color:var(--muted);margin-top:auto;padding-top:10px}
+
+.tip{position:fixed;z-index:7;pointer-events:none;background:var(--panel);border:1px solid var(--line);border-radius:8px;padding:6px 10px;font-size:14px;box-shadow:var(--sombra);max-width:260px}
+.inicio{position:fixed;z-index:4;left:50%;top:44%;transform:translate(-50%,-50%);border:0;border-radius:999px;padding:16px 26px;
+  background:var(--accent);color:var(--accent-fg);font:600 22px var(--f-display);letter-spacing:.03em;box-shadow:var(--sombra)}
+.sin-textos .leyenda{display:none}
+@media (max-width:640px){
+  .leyenda{left:16px;right:16px;width:auto;max-height:30vh;padding:8px 12px}
+  .leyenda h2{font-size:18px}
+  .leyenda p{font-size:12.5px;line-height:1.4}
+  .cap-actual{order:9;flex-basis:100%}
+}
+@media (prefers-reduced-motion: reduce){*{transition:none!important}}
+</style>
+
+<div id="vista" aria-label="Modelo 3D del dren"></div>
+
+<header class="cab">
+  <div class="tit"><h1>Pozo Dren · NEWAIR</h1><div class="sub">Aeropuerto AMB, Pudahuel · recorrido de la obra</div></div>
+  <button class="btn" id="bCaps" aria-expanded="false" aria-controls="caps">Capítulos</button>
+</header>
+
+<button class="inicio" id="inicio">▶ Ver el recorrido</button>
+
+<section class="leyenda" id="leyenda" aria-live="polite">
+  <div class="num" id="lNum"></div>
+  <h2 id="lTit"></h2>
+  <p id="lTxt"></p>
+</section>
+
+<aside class="caps" id="caps" hidden>
+  <div class="caps-cab"><h2>Capítulos</h2><button class="btn" id="cCerrar">Cerrar</button></div>
+  <ol id="lista"></ol>
+  <div class="nota">Toca un capítulo para ir a él. Puedes pausar y girar el modelo con el dedo o el mouse en cualquier momento.</div>
+</aside>
+
+<div class="tip" id="tip" hidden></div>
+
+<footer class="player">
+  <div class="linea">
+    <div class="tramos" id="tramos"></div>
+    <input type="range" id="barra" min="0" max="1000" step="1" value="0" aria-label="Línea de tiempo del recorrido">
+  </div>
+  <div class="ctrl">
+    <button class="btn" id="bAnt" aria-label="Capítulo anterior">⏮</button>
+    <button class="btn" id="bAtras" aria-label="Retroceder 10 segundos">↺ 10 s</button>
+    <button class="btn play" id="bPlay" aria-label="Reproducir">▶</button>
+    <button class="btn" id="bSig" aria-label="Capítulo siguiente">⏭</button>
+    <span class="tiempo" id="tiempo">0:00 / 0:00</span>
+    <span class="cap-actual" id="capActual"></span>
+    <button class="btn" id="bRepetir" aria-pressed="false" title="Repetir el capítulo actual en vez de seguir al siguiente">Repetir capítulo</button>
+    <button class="btn" id="bTextos" aria-pressed="true" title="Mostrar u ocultar los textos">Textos</button>
+  </div>
+</footer>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
+<script>
+"use strict";
+const num = (v, d = 2) => v.toLocaleString("es-CL", { minimumFractionDigits: d, maximumFractionDigits: d });
+const esc = s => String(s).replace(/[&<>"]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
+const INCLUYE = [[], [], ["Excavación pozo y zanja (factor de esponjamiento 30%) mas retiro a botadero autorizado"], ["Geotextil 280 gr/m²", "Bolones de 4 a 8 pulgadas", "Gravilla"], ["Tubo de drenaje corrugado perforado 110 mm (30mts)", "Tubo PVC liso 110 mm (bajo el portón)", "Estructura hormigon para pasada de dren sector entrada de vehiculos"], ["Cámara de registro PVC 400mm"], [], []];
+
+// ------------------------------------------------------------------ escena del dren (geometría de sitio.py)
+const S = {"ESQUINA": [11.0, 15.0], "YS": -25.0, "PORTON": [[11.0, 2.0], [11.0, -3.0]], "MEDIDOR": [10.4, -5.5], "TUBERIA_AGUA": [[10.4, -5.5], [-49.0, -5.5]], "PATIO": [[-49.0, -25.0], [11, -25.0], [11, 15], [-49.0, 15]], "BANOS": [[[-1.0, 12.0], [2.0, 14.5]], [[2.0, 12.0], [5.0, 14.5]]], "CONTENEDOR": [[5.0, 12.0], [7.4, 14.5]], "ACOPIO": [[5.6, 10.2], [8.2, 11.4]], "REJAS": [[[-49.0, 15], [11, 15]], [[11, 15], [11.0, 2.0]], [[11.0, -3.0], [11, -25.0]], [[11, -25.0], [-49.0, -25.0]], [[-49.0, -25.0], [-49.0, 15]]], "FRANJAS_PASTO": [[[10.2, -3.5], [11, -3.5], [11, -12], [10.2, -12]]], "PASTO_SUR": [[-20, -16], [11, -16], [11, -25.0], [-20, -25.0]], "OFICINAS": [[-48.0, -3.0], [-45.0, 13.0]], "FURGONES": [[-41.0, 11.0], [-41.0, 8.6], [-41.0, 6.2], [-41.0, 3.8]], "AUTO": [-41.0, -1.0], "ARBOL": [-22.0, 12.0], "CHARCO": [[-2, 11.6], [8.5, 11.6], [10.8, 9], [10.8, -3], [8, -5.2], [4, -3], [0, 3], [-3, 8]], "POZO": [[4.5, -11.0], [10.5, -7.0]], "PROF_POZO": 3.0, "CAPAS": [["Gravilla", 0.2], ["Geotextil", 0.0], ["Gravilla", 0.2], ["Bolón", 2.2], ["Gravilla", 0.2], ["Geotextil", 0.0], ["Tierra", 0.2]], "ANCHO_ZANJA": 0.5, "ANCHO_FONDO_ZANJA": 0.3, "PROF_ZANJA_INICIO": 0.3, "PROF_ZANJA": 0.5, "ESPESOR_TIERRA_ESTETICA": 0.05, "DIAM_TUBO": 0.11, "EJE_ZANJA": 10.25, "ZANJA": [[10.25, 15.0], [10.25, -7.0]], "CAMARA_REGISTRO": [10.25, -6.7], "DIAM_CAMARA": 0.2, "ANCLAJE_GEOTEXTIL": 0.5, "TUBO_PVC": [[10.25, 2.0], [10.25, -3.0]], "TUBO_POZO": [[10.25, -7.0], [10.25, -9.0], [4.8, -9.0]], "RADIO_CURVA": 0.6, "CANALETA_PORTON": [[10.25, 2.0], [10.25, -3.0]], "ANCHO_CANALETA_PORTON": 0.5, "ANCHO_INTERIOR_CANALETA": 0.3, "ALTO_CANALETA": 0.6, "BASE_CANALETA": 0.1, "MURO_CANALETA": 0.1, "MEDIDAS": {"pozo_a": 6.0, "pozo_b": 4.0, "pozo_h": 3.0, "excavacion": 72.0, "geotextil": 48.0, "capas": {"Gravilla": 14.400000000000002, "Bolón": 52.800000000000004, "Tierra": 4.800000000000001}, "zanja": 22.0, "canaleta_porton": 5.0, "tubo_pvc": 5.0, "tubo_pozo": 7.192477796076938, "tubo_total": 29.192477796076936, "tubo_perforado": 24.192477796076936, "curvas_90": 1, "prof_tubo_fin": 0.5653861617825177, "tubo_inspeccion": 0.5653861617825177, "pozo_a_tuberia": 1.5, "pozo_a_reja": 0.5, "zanja_m3": 3.5200000000000005}};
+const CX = 0, CY = 0;
+const vista = document.getElementById("vista");
+const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
+renderer.setPixelRatio(Math.min(2, window.devicePixelRatio || 1));
+vista.appendChild(renderer.domElement);
+const scene = new THREE.Scene();
+const camera = new THREE.PerspectiveCamera(42, 1, 0.1, 600);
+const controls = new THREE.OrbitControls(camera, renderer.domElement);
+controls.enableDamping = true; controls.maxPolarAngle = Math.PI * 0.49; controls.minDistance = 2; controls.maxDistance = 120;
+scene.add(new THREE.HemisphereLight(0xffffff, 0x8a8f86, 0.85));
+const sol = new THREE.DirectionalLight(0xffffff, 0.7); sol.position.set(-30, 50, 30); scene.add(sol);
+
+const G = {};
+["entorno", "suelo", "sueloHueco", "charco", "traza", "tubAgua", "excPozo", "excZanja", "geoZanja", "tubo", "ripio", "drenaje",
+ "camara", "tuboPozo", "inspeccion", "geoSup", "tierraEst", "rotulos", "geoPozo", ...S.CAPAS.flatMap((_, i) => ["c" + i, "r" + i])].forEach(n => { G[n] = new THREE.Group(); scene.add(G[n]); });
+const COL = { patio: 0xc2b7a0, pasto: 0x9cbf84, charco: 0x6fa8d0, tierra: 0x9c8466, bolon: 0x7d6c5b, gravilla: 0xbdb096,
+  estab: 0xd6caae, geotx: 0x2e8b57, tubo: 0x8e5bd0, pvc: 0xe07b39, ripio: 0x8d8a83, grava: 0xb3ab98, suelo: 0x6e5238, hormigon: 0xa7a9ac, rejilla: 0x3b3f44, agua: 0x159c9c };
+const mats = {};
+function mat(c, o = 1, extra = {}) { const k = c + "_" + o + JSON.stringify(extra); if (!mats[k]) mats[k] = new THREE.MeshLambertMaterial(Object.assign({ color: c, transparent: o < 1, opacity: o }, extra)); return mats[k]; }
+const picables = [];
+function nombrar(m, titulo) { m.userData = { titulo }; picables.push(m); return m; }
+const P3 = (x, y, h = 0) => new THREE.Vector3(x, h, -y);
+function caja([[x1, y1], [x2, y2]], h, color, base, grupo, titulo, extra) {
+  const m = new THREE.Mesh(new THREE.BoxGeometry(Math.abs(x2 - x1), h, Math.abs(y2 - y1)), extra || mat(color));
+  m.position.set((x1 + x2) / 2, base + h / 2, -(y1 + y2) / 2); grupo.add(m);
+  return titulo ? nombrar(m, titulo) : m;
+}
+function forma(poli, color, alto, grupo, huecos = [], material) {
+  const sh = new THREE.Shape(poli.map(([x, y]) => new THREE.Vector2(x, y)));
+  huecos.forEach(h => sh.holes.push(new THREE.Path(h.map(([x, y]) => new THREE.Vector2(x, y)))));
+  const m = new THREE.Mesh(new THREE.ShapeGeometry(sh), material || mat(color, 1, { side: THREE.DoubleSide }));
+  m.rotation.x = -Math.PI / 2; m.position.y = alto; grupo.add(m); return m;
+}
+// prisma de sección trapecial a lo largo de la zanja (eje x fijo), entre las coordenadas de plano ya > yb
+function prisma(pts, ya, yb, material) {
+  const sh = new THREE.Shape(pts.map(([u, v]) => new THREE.Vector2(u, v)));
+  const m = new THREE.Mesh(new THREE.ExtrudeGeometry(sh, { depth: ya - yb, bevelEnabled: false }), material);
+  m.position.set(S.EJE_ZANJA, 0, -ya); return m;
+}
+const trapecio = (wSup, wInf, hSup, hInf, ya, yb, material) =>
+  prisma([[-wSup / 2, hSup], [wSup / 2, hSup], [wInf / 2, hInf], [-wInf / 2, hInf]], ya, yb, material);
+const rect4 = ([[x1, y1], [x2, y2]]) => [[x1, y1], [x2, y1], [x2, y2], [x1, y2]];
+function tuboEntre(a, b, r, color, grupo, titulo) {
+  const d = b.clone().sub(a), m = new THREE.Mesh(new THREE.CylinderGeometry(r, r, d.length(), 12), mat(color));
+  m.position.copy(a.clone().add(b).multiplyScalar(0.5)); m.quaternion.setFromUnitVectors(new THREE.Vector3(0, 1, 0), d.normalize());
+  grupo.add(m); return titulo ? nombrar(m, titulo) : m;
+}
+
+// geometría fija confirmada
+const M = S.MEDIDAS, POZO = S.POZO, [[px1, py1], [px2, py2]] = POZO, H = S.PROF_POZO;
+const ZX = S.EJE_ZANJA, A = S.ANCHO_ZANJA, B = S.ANCHO_FONDO_ZANJA, F0 = S.PROF_ZANJA_INICIO, FC = S.PROF_ZANJA;
+const [[, zy1], [, zy2]] = S.ZANJA, LZ = M.zanja, ET = S.ESPESOR_TIERRA_ESTETICA, RT = S.DIAM_TUBO / 2;
+const prof = y => F0 + (FC - F0) * (zy1 - y) / LZ;    // alto de la zanja en la coordenada y del plano (0,30 → 0,50)
+const ancho = (f, d) => A - (A - B) * d / f;          // ancho de la zanja a la profundidad d, si el fondo está en f
+
+// entorno
+forma([[-90, -70], [70, -70], [70, 70], [-90, 70]], COL.pasto, -0.03, G.entorno, [S.PATIO]);
+caja([[11.6, S.YS - 12], [17.5, 30]], 0.05, 0xbfc3c6, 0, G.entorno);
+caja([[20, 4], [34, 18]], 7, 0x9fb0c6, 0, G.entorno, "Edificio vecino");
+caja([[18.5, -26], [34, -10]], 7, 0x2b3138, 0, G.entorno, "Edificio vecino");
+S.FRANJAS_PASTO.forEach(f => forma(f, 0x8fbe78, 0.012, G.entorno));
+forma(S.PASTO_SUR, 0x8fbe78, 0.012, G.entorno);
+S.BANOS.forEach(b => { caja(b, 2.6, 0xf7f7f5, 0, G.entorno, "Baños"); const [[x1, y1], [x2, y2]] = b;
+  caja([[x1, y1 - 0.02], [x1 + 0.12, y2 + 0.02]], 2.62, 0xc8102e, 0, G.entorno); caja([[x2 - 0.12, y1 - 0.02], [x2, y2 + 0.02]], 2.62, 0xc8102e, 0, G.entorno); });
+caja(S.CONTENEDOR, 2.6, 0x8e979f, 0, G.entorno, "Contenedor");
+caja(S.ACOPIO, 0.35, 0xb88e5c, 0, G.entorno, "Acopio");
+caja(S.OFICINAS, 2.7, 0xf4f4f2, 0, G.entorno, "Oficinas");
+S.FURGONES.forEach(([x, y]) => caja([[x - 2.3, y - 0.95], [x + 2.3, y + 0.95]], 1.9, 0xffffff, 0, G.entorno, "Furgón"));
+caja([[S.AUTO[0] - 2.3, S.AUTO[1] - 0.9], [S.AUTO[0] + 2.3, S.AUTO[1] + 0.9]], 1.4, 0x20252b, 0, G.entorno);
+{ const t = new THREE.Mesh(new THREE.CylinderGeometry(0.3, 0.4, 3, 8), mat(0x6b4f35)); t.position.copy(P3(S.ARBOL[0], S.ARBOL[1], 1.5)); G.entorno.add(t);
+  const c = new THREE.Mesh(new THREE.SphereGeometry(2.8, 16, 12), mat(0x4f8f43)); c.position.copy(P3(S.ARBOL[0], S.ARBOL[1], 4.6)); G.entorno.add(c); }
+function reja(a, b) {
+  const pa = P3(a[0], a[1]), pb = P3(b[0], b[1]), L = pa.distanceTo(pb), n = Math.max(1, Math.round(L / 2.5));
+  for (let i = 0; i <= n; i++) { const p = pa.clone().lerp(pb, i / n), poste = new THREE.Mesh(new THREE.CylinderGeometry(0.04, 0.04, 2.4, 6), mat(0x9aa1a8)); poste.position.set(p.x, 1.2, p.z); G.entorno.add(poste); }
+  const malla = new THREE.Mesh(new THREE.PlaneGeometry(L, 2.0), mat(0xa7aeb5, 0.22, { side: THREE.DoubleSide }));
+  malla.position.set((pa.x + pb.x) / 2, 1.05, (pa.z + pb.z) / 2); malla.rotation.y = -Math.atan2(pb.z - pa.z, pb.x - pa.x); G.entorno.add(malla);
+}
+S.REJAS.forEach(([a, b]) => reja(a, b));
+S.PORTON.forEach(([x, y]) => { for (let k = 0; k < 6; k++) { const s = new THREE.Mesh(new THREE.CylinderGeometry(0.08, 0.08, 0.4, 8), mat(k % 2 ? 0xffffff : 0x111111)); s.position.copy(P3(x, y, 0.2 + k * 0.4)); G.entorno.add(s); } });
+{ const m = new THREE.Mesh(new THREE.BoxGeometry(0.5, 0.6, 0.4), mat(COL.agua)); m.position.copy(P3(S.MEDIDOR[0], S.MEDIDOR[1], 0.3)); nombrar(m, "Medidor de agua"); G.entorno.add(m); }
+
+// suelo del patio: entero, o con los huecos del pozo y de la zanja
+const huecoZ = [[ZX - A / 2, zy2 + 0.01], [ZX + A / 2, zy2 + 0.01], [ZX + A / 2, zy1 - 0.01], [ZX - A / 2, zy1 - 0.01]];   // sin tocar el borde del patio ni el hueco del pozo (si se tocan, el piso se triangula mal)
+const matSuelo = mat(COL.patio, 0.999, { side: THREE.DoubleSide }), matSueloH = mat(COL.patio, 0.998, { side: THREE.DoubleSide });
+forma(S.PATIO, COL.patio, 0, G.suelo, [], matSuelo);
+forma(S.PATIO, COL.patio, 0, G.sueloHueco, [rect4(POZO), huecoZ], matSueloH);
+nombrar(forma(S.CHARCO, COL.charco, 0.03, G.charco, [], mat(COL.charco, 0.75, { side: THREE.DoubleSide })), "Agua estancada (video)");
+
+// trazado en el suelo
+function linea(pts, color) { const g = new THREE.BufferGeometry().setFromPoints(pts.map(([x, y]) => P3(x, y, 0.05)));
+  const l = new THREE.Line(g, new THREE.LineDashedMaterial({ color, dashSize: 0.5, gapSize: 0.3 })); l.computeLineDistances(); G.traza.add(l); }
+linea([...rect4(POZO), rect4(POZO)[0]], 0xc4703f);
+linea([...huecoZ, huecoZ[0]], 0x2f7cc0);
+linea(S.TUBERIA_AGUA, COL.agua);
+
+// tubería de agua existente (se dibuja a 0,6 m; su profundidad no cambia la obra)
+{ const [a, b] = S.TUBERIA_AGUA; tuboEntre(P3(a[0], a[1], -0.6), P3(b[0], b[1], -0.6), 0.06, COL.agua, G.tubAgua, "Tubería de agua existente"); }
+
+// excavación del pozo (6 × 4 × 3, horizontal)
+{ const paredes = new THREE.Mesh(new THREE.BoxGeometry(px2 - px1, H, py2 - py1), mat(COL.tierra, 1, { side: THREE.BackSide }));
+  paredes.position.set((px1 + px2) / 2, -H / 2 + 0.002, -(py1 + py2) / 2); G.excPozo.add(nombrar(paredes, "Excavación del Pozo Dren 6 × 4 × 3 m"));
+  const borde = new THREE.LineSegments(new THREE.EdgesGeometry(new THREE.BoxGeometry(px2 - px1, H, py2 - py1)), new THREE.LineBasicMaterial({ color: 0x6b3a1e }));
+  borde.position.copy(paredes.position); G.excPozo.add(borde); }
+// zanja en trapecio, por tramos de 0,5 m para seguir la pendiente del fondo: geotextil en las paredes, ripio hasta arriba y
+// una capa de geotextil encima
+// sin las tapas de cada tramo (se veían como barreras verticales a lo largo de la zanja)
+const sinTapa = new THREE.MeshBasicMaterial({ visible: false });
+{ const n = Math.ceil((zy1 - zy2) / 0.5), e = 0.015, matGeo = mat(COL.geotx, 0.55, { side: THREE.DoubleSide });
+  for (let i = 0; i < n; i++) {
+    const ya = zy1 - i * (zy1 - zy2) / n, yb = zy1 - (i + 1) * (zy1 - zy2) / n, f = prof((ya + yb) / 2);
+    G.excZanja.add(nombrar(trapecio(A, B, 0.002, -f, ya, yb, [sinTapa, mat(0x8e7558, 1, { side: THREE.BackSide })]), "Zanja en trapecio: boca 0,50 · fondo 0,30"));
+    [-1, 1].forEach(sg => G.geoZanja.add(nombrar(prisma([[sg * A / 2, 0], [sg * (A / 2 - e), 0], [sg * (B / 2 - e), -f], [sg * B / 2, -f]], ya, yb, matGeo), "Geotextil en las paredes de la zanja")));
+    G.geoZanja.add(nombrar(prisma([[-B / 2, -f + e], [B / 2, -f + e], [B / 2, -f], [-B / 2, -f]], ya, yb, matGeo), "Geotextil en el fondo de la zanja"));
+    G.ripio.add(nombrar(trapecio(A - 2 * e, B - 2 * e, -e, -f, ya, yb, mat(COL.gravilla)), "Relleno de gravilla hasta arriba"));
+    G.geoSup.add(nombrar(trapecio(A, A, 0.008, -0.002, ya, yb, mat(COL.geotx)), "Geotextil sobre la gravilla"));
+  } }
+// capa estética de tierra (ESTIMADA): tapa la zanja y sus bordes de anclaje, salvo el portón (hormigón a la vista), y el
+// borde de anclaje del pozo
+{ const an = S.ANCHO_ZANJA / 2 + S.ANCLAJE_GEOTEXTIL, a2 = S.ANCLAJE_GEOTEXTIL, mT = mat(0x8a6a48), [[, p1], [, p2]] = S.PORTON;
+  [[zy1, p1], [p2, zy2]].forEach(([y1, y2]) => caja([[ZX - an, y2], [ZX + an, y1]], ET, 0, 0, G.tierraEst, "Capa estética de tierra, 0,05 m (estimada)", mT));
+  [[[px1 - a2, py2], [px2 + a2, py2 + a2]], [[px1 - a2, py1 - a2], [px2 + a2, py1]], [[px1 - a2, py1], [px1, py2]], [[px2, py1], [px2 + a2, py2]]]
+    .forEach(r => caja(r, ET, 0, 0, G.tierraEst, "Capa estética de tierra, 0,05 m (estimada)", mT)); }
+// borde de anclaje del geotextil (0,50 m), sobre el piso: a ambos lados de la zanja y en el perímetro del pozo
+{ const an = S.ANCLAJE_GEOTEXTIL, mA = mat(COL.geotx, 0.8, { side: THREE.DoubleSide });
+  [-1, 1].forEach(sg => { const x1 = ZX + sg * A / 2, x2 = x1 + sg * an;
+    nombrar(forma([[x1, zy1], [x2, zy1], [x2, zy2], [x1, zy2]], COL.geotx, 0.015, G.geoZanja, [], mA), "Borde de anclaje del geotextil, 0,50 m"); });
+  nombrar(forma(rect4([[px1 - an, py1 - an], [px2 + an, py2 + an]]), COL.geotx, 0.02, G.geoPozo, [rect4(POZO)], mA), "Borde de anclaje del geotextil, 0,50 m");
+  const invis = new THREE.MeshBasicMaterial({ visible: false }), mP = mat(COL.geotx, 0.35, { side: THREE.BackSide });
+  const forro = new THREE.Mesh(new THREE.BoxGeometry(px2 - px1 - 0.01, H, py2 - py1 - 0.01), [mP, mP, invis, invis, mP, mP]);
+  forro.position.set((px1 + px2) / 2, -H / 2, -(py1 + py2) / 2); G.geoPozo.add(nombrar(forro, "Geotextil en las paredes del pozo")); }
+// relleno del pozo, capa por capa desde el fondo (grupos c0…c8); la grava de arriba va traslúcida para ver el tubo
+const CAPA = { "Grava": COL.grava, "Gravilla": COL.gravilla, "Bolón": COL.bolon, "Tierra": COL.suelo, "Geotextil": COL.geotx };
+const DESC = { "Grava": "Grava", "Gravilla": "Gravilla", "Bolón": "Bolón", "Tierra": "Tierra", "Geotextil": "Malla geotextil" };
+const BASES = []; { let z = -H; S.CAPAS.forEach(([nm, e], i) => {
+  BASES.push(z); const alto = e || 0.025;
+  const m = new THREE.Mesh(new THREE.BoxGeometry(px2 - px1 - 0.02, alto, py2 - py1 - 0.02), new THREE.MeshLambertMaterial({ color: CAPA[nm] }));
+  m.position.set((px1 + px2) / 2, z + (e ? e / 2 : 0), -(py1 + py2) / 2);
+  G["c" + i].add(nombrar(m, DESC[nm] + (e ? " · " + num(e) + " m" : ""))); z += e;
+}); }
+// rótulos de la vista frontal: material y espesor de cada capa, con una guía a su altura, y las cotas del pozo
+function cartel(txt, x, h, z, alin = "right", grupo = G.rotulos) {
+  const cv = document.createElement("canvas"); cv.width = 1024; cv.height = 128; const cx = cv.getContext("2d");
+  cx.font = "600 64px 'IBM Plex Sans', system-ui, sans-serif"; const w = cx.measureText(txt).width + 40;
+  const x0 = alin === "right" ? 1024 - w : 0;
+  cx.fillStyle = "rgba(247,248,245,.92)"; cx.fillRect(x0, 14, w, 100); cx.fillStyle = "#1c2421"; cx.textBaseline = "middle";
+  cx.fillText(txt, x0 + 20, 66);
+  const sp = new THREE.Sprite(new THREE.SpriteMaterial({ map: new THREE.CanvasTexture(cv), depthTest: false }));
+  sp.scale.set(2.4, 0.3, 1); sp.renderOrder = 10; sp.position.set(alin === "right" ? x - 1.2 : x + 1.2, h, z); grupo.add(sp);
+}
+function guia(pts, grupo = G.rotulos) { const l = new THREE.Line(new THREE.BufferGeometry().setFromPoints(pts.map(([x, h, z]) => new THREE.Vector3(x, h, z))),
+  new THREE.LineBasicMaterial({ color: 0x1c2421, depthTest: false })); l.renderOrder = 10; grupo.add(l); }
+{ const zf = -py1 + 0.05, n = S.CAPAS.length, xl = px1 - 0.25;
+  S.CAPAS.forEach(([nm, e], i) => {
+    const hl = -H + (i + 0.5) * H / n, hc = BASES[i] + e / 2;
+    cartel(DESC[nm] + (e ? " · " + num(e) + " m" : ""), xl, hl, zf, "right", G["r" + i]);
+    guia([[xl, hl, zf], [px1 - 0.1, hl, zf], [px1 + 0.25, hc, zf]], G["r" + i]);
+  });
+  guia([[px2 + 0.25, 0, zf], [px2 + 0.25, -H, zf]]); cartel("Profundidad " + num(H) + " m", px2 + 0.35, -H / 2, zf, "left");
+  cartel("Geotextil + anclaje 0,50 m", px1 - 0.25, 0.45, zf);
+  guia([[px1, 0.25, zf], [px2, 0.25, zf]]); cartel("Largo " + num(px2 - px1) + " m · ancho " + num(py2 - py1) + " m", (px1 + px2) / 2 - 1.2, 0.5, zf, "left"); }
+// tubo en el fondo de la zanja: perforado, salvo los 5 m del portón en PVC liso de la misma medida
+{ const [[, vy1], [, vy2]] = S.TUBO_PVC, en = y => P3(ZX, y, -prof(y) + RT);
+  tuboEntre(en(zy1), en(vy1), RT, COL.tubo, G.tubo, "Tubo de drenaje perforado 110 mm");
+  tuboEntre(en(vy1), en(vy2), RT, COL.pvc, G.tubo, "Tubo PVC liso 110 mm (bajo el portón)");
+  tuboEntre(en(vy2), en(zy2), RT, COL.tubo, G.tubo, "Tubo de drenaje perforado 110 mm"); }
+// cámara de registro de PVC al final de la zanja; el tubo pasa por ella y sigue al pozo
+{ const [cx, cy] = S.CAMARA_REGISTRO, rc = S.DIAM_CAMARA / 2, fc = prof(cy), hc = fc + ET + 0.02;
+  const cam = new THREE.Mesh(new THREE.CylinderGeometry(rc, rc, hc, 20), mat(0x4a4f55)); cam.position.copy(P3(cx, cy, -fc + hc / 2));
+  G.camara.add(nombrar(cam, "Cámara de registro PVC 200 mm, entradas de 110 mm"));
+  const tp = new THREE.Mesh(new THREE.CylinderGeometry(rc + 0.02, rc + 0.02, 0.03, 20), mat(0x24282c)); tp.position.copy(P3(cx, cy, ET + 0.035));
+  G.camara.add(nombrar(tp, "Tapa de la cámara de registro")); }
+// dentro del pozo: baja por el borde oriente, dobla 90° y recorre el pozo a lo largo con la misma pendiente de la zanja;
+// al final, el tubo de inspección
+{ const [[ax, ay], [bx, by], [cx, cy]] = S.TUBO_POZO, R = S.RADIO_CURVA, pend = (FC - F0) / LZ, ox = bx - R, oy = by + R;
+  const plano = [[ax, ay]];
+  for (let y = ay - 0.25; y > oy; y -= 0.25) plano.push([ax, y]);
+  for (let k = 0; k <= 12; k++) { const t = -Math.PI / 2 * k / 12; plano.push([ox + R * Math.cos(t), oy + R * Math.sin(t)]); }
+  for (let x = ox - 0.25; x > cx; x -= 0.25) plano.push([x, by]);
+  plano.push([cx, cy]);
+  let d = 0; const pts = plano.map(([x, y], i) => { if (i) d += Math.hypot(x - plano[i - 1][0], y - plano[i - 1][1]); return P3(x, y, -(FC + pend * d) + RT); });
+  G.tuboPozo.add(nombrar(new THREE.Mesh(new THREE.TubeGeometry(new THREE.CatmullRomCurve3(pts), 200, RT, 12), mat(COL.tubo)),
+    "Tubo perforado dentro del pozo, con " + num(pend * 100) + " % de pendiente"));
+  const zf = -(FC + pend * d) + RT;
+  tuboEntre(P3(cx, cy, zf), P3(cx, cy, 0.08), RT, COL.pvc, G.inspeccion, "Tubo de inspección");
+  const tp = new THREE.Mesh(new THREE.CylinderGeometry(RT + 0.02, RT + 0.02, 0.05, 16), mat(0x3a2a55)); tp.position.copy(P3(cx, cy, 0.1));
+  G.inspeccion.add(nombrar(tp, "Tapa del tubo de inspección")); }
+// estructura de hormigón del portón (paso de vehículos): cajón con tapa lisa a nivel del suelo; el PVC liso pasa por dentro
+{ const [[, ky1], [, ky2]] = S.CANALETA_PORTON, kL = ky1 - ky2, kz = -(ky1 + ky2) / 2;
+  const kA = S.ANCHO_CANALETA_PORTON, kI = S.ANCHO_INTERIOR_CANALETA, kM = S.MURO_CANALETA, kH = S.ALTO_CANALETA, kB = S.BASE_CANALETA;
+  [-1, 1].forEach(sg => { const muro = new THREE.Mesh(new THREE.BoxGeometry(kM, kH + kB, kL), mat(COL.hormigon)); muro.position.set(ZX + sg * (kA - kM) / 2, -(kH + kB) / 2 + 0.02, kz); G.drenaje.add(nombrar(muro, "Estructura de hormigón del portón")); });
+  const losa = new THREE.Mesh(new THREE.BoxGeometry(kA, kB, kL), mat(COL.hormigon)); losa.position.set(ZX, -kH - kB / 2 + 0.02, kz); G.drenaje.add(nombrar(losa, "Estructura de hormigón del portón"));
+  const tapa = new THREE.Mesh(new THREE.BoxGeometry(kA, 0.12, kL), mat(COL.hormigon)); tapa.position.set(ZX, -0.06 + 0.02, kz);
+  G.drenaje.add(nombrar(tapa, "Estructura de hormigón del portón: cara superior lisa")); }
+
+
+// ------------------------------------------------------------------ capítulos de la película
+const T = (x, y, h = 0) => [x, h, -y];                 // punto del plano (x, y en metros) a la escena
+const k = (t, r, h, a) => ({ t, r, h, a });           // cuadro clave: objetivo, distancia, altura y ángulo (grados)
+const CAPS = [
+  { n: "El patio hoy", dur: 7, ver: ["entorno", "suelo", "charco"], op: 1,
+    kf: [k(T(2, 2), 36, 26, -25), k(T(3, 0), 30, 20, 15)],
+    txt: "El agua de lluvia se junta frente a los baños, y escurre hacia el portón de la calle. La obra va solo por el borde de la reja este, de 40 m." },
+  { n: "Trazado", dur: 7, ver: ["entorno", "suelo", "charco", "traza"], op: 1,
+    kf: [k(T(7, 2), 22, 18, -15), k(T(8, -2), 17, 13, 20)],
+    txt: "Se marcan la zanja (azul), pegada a la reja desde la esquina noreste hasta el Pozo Dren, y el pozo (café), a 0,50 m de la reja y a 1,50 m al sur de la tubería de agua. Con nivel se fija la caída del fondo de la zanja: de 0,30 m en la esquina a 0,50 m en el pozo." },
+  { n: "Excavación", dur: 7, ver: ["entorno", "sueloHueco", "excPozo", "excZanja", "tubAgua"], op: 0.55,
+    anim: [["excPozo", "sube", 0.05, 0.55, 0], ["excZanja", "sube", 0.35, 0.85, 0]],
+    kf: [k(T(8, -5, -1), 17, 10, -30), k(T(9, -6, -1), 12, 7, 30)],
+    txt: "El Pozo Dren de 6 × 4 × 3 m va horizontal. La zanja es un trapecio de 0,50 m de boca y 0,30 m de fondo: tiene 0,30 m de alto en la esquina y baja hasta 0,50 m, su máximo, al llegar al pozo." },
+  { n: "El pozo por dentro", dur: 7, escMovil: 1.5, ver: ["sueloHueco", "excPozo", "geoPozo", "rotulos", "c0", "c1", "c2", "c3", "c4", "c5", "c6", "r0", "r1", "r2", "r3", "r4", "r5", "r6"], op: 0.2,
+    anim: [["geoPozo", "aparece", 0.01, 0.09], ["c0", "sube", 0.110, 0.221, -3.0], ["r0", "muestra", 0.110, 1], ["c1", "sube", 0.233, 0.343, -2.8125], ["r1", "muestra", 0.233, 1], ["c2", "sube", 0.356, 0.466, -2.8], ["r2", "muestra", 0.356, 1], ["c3", "sube", 0.479, 0.589, -2.6], ["r3", "muestra", 0.479, 1], ["c4", "sube", 0.601, 0.712, -0.4], ["r4", "muestra", 0.601, 1], ["c5", "sube", 0.724, 0.835, -0.2125], ["r5", "muestra", 0.724, 1], ["c6", "sube", 0.847, 0.958, -0.2], ["r6", "muestra", 0.847, 1]],
+    kf: [k(T(7.2, -11, -1.4), 10.5, 1.7, -8), k(T(7.2, -11, -1.4), 10.5, 1.7, 8)],
+    txt: "Vista frontal del pozo de 6 × 4 × 3 m, forrado con geotextil en las paredes, con un borde de 0,50 m anclado al piso. Se llena por capas desde el fondo: 20 cm de gravilla, malla geotextil, 20 cm de gravilla, 220 cm de bolones, 20 cm de gravilla, malla geotextil y 20 cm de tierra." },
+  { n: "Zanja y tubo", dur: 7, ver: ["entorno", "sueloHueco", "excPozo", "excZanja", "tubAgua", "geoPozo", "c0", "c1", "c2", "c3", "c4", "c5", "c6", "geoZanja", "tubo", "drenaje"], op: 0.45, velo: 0.35,
+    anim: [["geoZanja", "aparece", 0.05, 0.3], ["tubo", "aparece", 0.3, 0.6], ["drenaje", "sube", 0.6, 0.9, -0.7]],
+    kf: [k(T(10.25, 6, -0.3), 8, 4.5, -70), k(T(10.25, -1, -0.3), 7, 3.8, -110)],
+    txt: "El fondo y las paredes de la zanja se forran con geotextil, con un borde de 0,50 m a cada lado anclado al piso. En el fondo va el tubo de drenaje perforado de 110 mm, con 0,91 % de pendiente; en los 5 m del portón cambia a PVC liso de la misma medida (naranjo) y después vuelve a ser perforado. En el portón, el tramo de PVC liso queda dentro de una estructura de hormigón con la cara superior lisa, para el paso de vehículos." },
+  { n: "Cámara y tubo en el pozo", dur: 7, ver: ["entorno", "sueloHueco", "excPozo", "excZanja", "tubAgua", "geoPozo", "c0", "c1", "c2", "c3", "c4", "c5", "c6", "geoZanja", "tubo", "drenaje", "camara", "tuboPozo", "inspeccion"], op: 0.45, velo: 0.35,
+    anim: [["camara", "sube", 0.05, 0.3, -0.5], ["tuboPozo", "aparece", 0.3, 0.65], ["inspeccion", "sube", 0.65, 0.9, -0.6]],
+    kf: [k(T(10.25, -6.7, -0.3), 3.5, 2, -50), k(T(7.5, -9, -0.5), 8, 4.5, -95)],
+    txt: "Al final de la zanja, justo antes del pozo, va una cámara de registro de PVC por la que pasa el tubo. El tubo perforado entra al pozo, baja por el borde oriente hasta su eje, dobla en una curva de 90° (dos codos de 45°) y recorre el pozo a lo largo con la misma pendiente, dentro de los bolones. En su extremo sube un tubo de inspección hasta la superficie." },
+  { n: "Gravilla y terminación", dur: 7, ver: ["entorno", "sueloHueco", "excPozo", "excZanja", "tubAgua", "c0", "c1", "c2", "c3", "c4", "c5", "c6", "geoZanja", "tubo", "drenaje", "camara", "tuboPozo", "inspeccion", "ripio", "geoSup", "geoPozo", "tierraEst"], op: 1,
+    anim: [["ripio", "sube", 0.05, 0.4, -0.5], ["geoSup", "aparece", 0.4, 0.55], ["tierraEst", "cae", 0.6, 0.95]],
+    kf: [k(T(10.25, 4, -0.2), 6, 3, -60), k(T(6, -6), 16, 9, 20)],
+    txt: "La gravilla llena la zanja hasta arriba y se cubre con geotextil. Al final, una capa delgada de tierra (0,05 m, estimada) tapa la zanja y los bordes verdes de anclaje de la zanja y del pozo; en el portón queda a la vista la estructura de hormigón." },
+  { n: "La obra terminada", dur: 7, ver: ["entorno", "sueloHueco", "drenaje", "camara", "inspeccion", "ripio", "geoSup", "tierraEst", "c6"], op: 1,
+    kf: [k(T(2, 0), 32, 20, -35), k(T(2, 0), 30, 18, 40), k(T(2, 0), 32, 20, 120)],
+    txt: "A la vista quedan la franja de tierra sobre la zanja, la estructura de hormigón del portón, la tapa de la cámara de registro y la del tubo de inspección. El agua corre por la superficie hasta la zanja, baja por el tubo y se reparte en el pozo hasta que el terreno la absorbe." },
+];
+const LECTURA = 2;                                    // segundos quietos al final de cada capítulo para leer el texto
+const INI = []; let TOTAL = 0;
+CAPS.forEach(c => { INI.push(TOTAL); TOTAL += c.dur; });
+
+// ------------------------------------------------------------------ reproductor
+const $ = id => document.getElementById(id);
+let t = 0, jugando = false, manual = false, capAct = -1, repetir = false, mezcla = null;
+const fmt = s => Math.floor(s / 60) + ":" + String(Math.floor(s % 60)).padStart(2, "0");
+const capDe = s => { let i = 0; while (i < CAPS.length - 1 && s >= INI[i + 1]) i++; return i; };
+const ease = f => f * f * (3 - 2 * f);
+
+function camara(s) {
+  const i = capDe(s), c = CAPS[i], u = Math.min(1, Math.max(0, (s - INI[i]) / (c.dur - LECTURA))), n = c.kf.length - 1;
+  const x = u * n, j = Math.min(n - 1, Math.floor(x)), f = ease(x - j), A = c.kf[j], B = c.kf[j + 1];
+  const L = (a, b) => a + (b - a) * f;
+  const tg = new THREE.Vector3(L(A.t[0], B.t[0]), L(A.t[1], B.t[1]), L(A.t[2], B.t[2]));
+  const e = ESC > 1 ? ESC * (c.escMovil || 1) : 1;   // en celular se aleja; el corte del pozo, un poco más por sus rótulos
+  const r = L(A.r, B.r) * e, h = L(A.h, B.h) * e, a = L(A.a, B.a) * Math.PI / 180;
+  return { pos: tg.clone().add(new THREE.Vector3(r * Math.sin(a), h, r * Math.cos(a))), tg };
+}
+// lo que se construye en el capítulo: "sube" crece desde su base (o hacia abajo si la base es 0 y el objeto está bajo el
+// suelo), "cae" se posa desde arriba, "aparece" se funde desde transparente y "muestra" lo enciende al llegar su turno
+const ANIMADOS = [...new Set(CAPS.flatMap(c => (c.anim || []).map(a => a[0])))];
+function obra(s) {
+  const i = capDe(s), c = CAPS[i], u = Math.min(1, Math.max(0, (s - INI[i]) / (c.dur - LECTURA)));
+  ANIMADOS.forEach(g => { G[g].scale.y = 1; G[g].position.y = 0; G[g].traverse(o => { if (o.isMesh && o.userData.funde) { o.material.opacity = 1; o.material.transparent = false; } }); });
+  (c.anim || []).forEach(([g, tipo, d, h, base = 0]) => {
+    const f = ease(Math.min(1, Math.max(0, (u - d) / (h - d)))), grupo = G[g];
+    if (tipo === "cae") { grupo.position.y = 6 * (1 - f); return; }
+    if (tipo === "muestra") { grupo.visible = (u - d) > 0; return; }
+    if (tipo === "aparece") { grupo.traverse(o => { if (o.isMesh) { o.userData.funde = true; o.material.transparent = true; o.material.opacity = Math.max(0.02, f); } }); return; }
+    grupo.scale.y = Math.max(0.001, f); grupo.position.y = base * (1 - grupo.scale.y);
+    grupo.visible = f > 0.01;
+  });
+}
+function mostrar(i) {
+  const c = CAPS[i];
+  Object.keys(G).forEach(g => { G[g].visible = c.ver.includes(g); });
+  [matSuelo, matSueloH].forEach(m => { m.transparent = true; m.opacity = c.op; m.depthWrite = c.op === 1; });
+  const velo = c.velo || 1;                            // las dos capas de arriba del pozo, traslúcidas para ver el tubo
+  S.CAPAS.map((_, j) => j).filter(j => BASES[j] + S.CAPAS[j][1] > -(FC + 0.2)).forEach(j => G["c" + j].traverse(o => { if (o.isMesh) {
+    o.material.opacity = velo; o.material.transparent = velo < 1; o.material.depthWrite = velo === 1; } }));
+  $("lNum").textContent = "Capítulo " + (i + 1) + " de " + CAPS.length;
+  $("lTit").textContent = c.n; $("lTxt").textContent = c.txt; $("capActual").textContent = (i + 1) + ". " + c.n;
+  document.querySelectorAll("#tramos button").forEach((b, j) => b.classList.toggle("on", j <= i));
+  document.querySelectorAll("#lista > li").forEach((li, j) => li.classList.toggle("on", j === i));
+}
+function ir(s, dejarManual) {
+  t = Math.max(0, Math.min(TOTAL, s));
+  if (!dejarManual) { manual = false; mezcla = null; }
+  pintar();
+}
+function pintar() {
+  const i = capDe(t);
+  if (i !== capAct) { capAct = i; mostrar(i); }
+  $("barra").value = Math.round(t / TOTAL * 1000);
+  $("tiempo").textContent = fmt(t) + " / " + fmt(TOTAL);
+}
+function play(v) {
+  if (v && t >= TOTAL - 0.01) t = 0;
+  jugando = v; $("inicio").hidden = true;
+  $("bPlay").textContent = v ? "❚❚" : "▶"; $("bPlay").setAttribute("aria-label", v ? "Pausar" : "Reproducir");
+  if (v && manual) { mezcla = { p: camera.position.clone(), g: controls.target.clone(), t0: performance.now() }; manual = false; }
+}
+
+// línea de tiempo con un tramo por capítulo
+$("tramos").innerHTML = CAPS.map((c, i) => `<button style="--d:${c.dur}" title="${i + 1}. ${esc(c.n)}" aria-label="Ir al capítulo ${i + 1}: ${esc(c.n)}" data-i="${i}"></button>`).join("");
+$("tramos").addEventListener("click", e => { const b = e.target.closest("button"); if (b) ir(INI[+b.dataset.i]); });
+$("barra").addEventListener("input", e => ir(e.target.value / 1000 * TOTAL));
+$("bPlay").onclick = () => play(!jugando);
+$("inicio").onclick = () => play(true);
+$("bAtras").onclick = () => ir(t - 10);
+$("bAnt").onclick = () => { const i = capDe(t); ir(t - INI[i] > 1.5 ? INI[i] : INI[Math.max(0, i - 1)]); };
+$("bSig").onclick = () => { const i = capDe(t); if (i < CAPS.length - 1) ir(INI[i + 1]); };
+$("bRepetir").onclick = () => { repetir = !repetir; $("bRepetir").setAttribute("aria-pressed", String(repetir)); };
+$("bTextos").onclick = () => { const on = document.body.classList.toggle("sin-textos"); $("bTextos").setAttribute("aria-pressed", String(!on)); tam(); };
+document.addEventListener("keydown", e => {
+  if (e.target.closest("input,button,summary") && e.key === " ") return;
+  if (e.key === " ") { e.preventDefault(); play(!jugando); }
+  else if (e.key === "ArrowLeft") ir(t - 5);
+  else if (e.key === "ArrowRight") ir(t + 5);
+});
+
+// lista de capítulos con lo que incluye cada uno
+$("lista").innerHTML = CAPS.map((c, i) => {
+  const inc = (INCLUYE && INCLUYE[i]) || [];
+  return `<li><button class="ir" data-i="${i}"><span class="n">${String(i + 1).padStart(2, "0")}</span><span class="t">${esc(c.n)}</span><span class="d">${fmt(c.dur)}</span></button>
+    ${inc.length ? `<details><summary>Qué incluye</summary><ul>${inc.map(d => `<li>${esc(d)}</li>`).join("")}</ul></details>` : ""}</li>`;
+}).join("");
+$("lista").addEventListener("click", e => {
+  const b = e.target.closest(".ir"); if (!b) return;
+  ir(INI[+b.dataset.i]);
+  if (window.innerWidth < 900) abrirCaps(false);
+});
+function abrirCaps(v) { $("caps").hidden = !v; $("bCaps").setAttribute("aria-expanded", String(v)); }
+$("bCaps").onclick = () => abrirCaps($("caps").hidden);
+$("cCerrar").onclick = () => abrirCaps(false);
+
+// girar el modelo a mano pausa la película; al reanudar, la cámara vuelve suave al recorrido
+controls.addEventListener("start", () => { manual = true; if (jugando) play(false); });
+
+// tocar una pieza muestra su nombre
+const ray = new THREE.Raycaster(), ptr = new THREE.Vector2(); let abajo = null, tTip;
+renderer.domElement.addEventListener("pointerdown", e => abajo = [e.clientX, e.clientY]);
+renderer.domElement.addEventListener("pointerup", e => {
+  if (!abajo || Math.hypot(e.clientX - abajo[0], e.clientY - abajo[1]) > 6) return;
+  const r = renderer.domElement.getBoundingClientRect();
+  ptr.set((e.clientX - r.left) / r.width * 2 - 1, -((e.clientY - r.top) / r.height) * 2 + 1);
+  ray.setFromCamera(ptr, camera);
+  const vis = o => { for (let n = o; n; n = n.parent) if (!n.visible) return false; return true; };
+  const h = ray.intersectObjects(picables.filter(vis))[0], tip = $("tip");
+  if (!h || !h.object.userData.titulo) { tip.hidden = true; return; }
+  tip.textContent = h.object.userData.titulo.replace(/\s*\([A-D]\.\d+\.\d+\)/g, "");
+  tip.style.left = Math.min(window.innerWidth - 270, e.clientX + 12) + "px"; tip.style.top = Math.max(70, e.clientY - 40) + "px";
+  tip.hidden = false; clearTimeout(tTip); tTip = setTimeout(() => tip.hidden = true, 3000);
+});
+
+// en pantallas angostas (celular vertical) la cámara se aleja según el ancho útil que deja el texto
+let ESC = 1;
+function tam() {
+  // escritorio: texto a la izquierda y la obra corrida a la derecha. Celular (angosto): texto en una franja sobre el
+  // reproductor, la obra centrada en el espacio libre de arriba y la cámara más lejos según lo angosta que es la pantalla
+  const W = window.innerWidth, H = window.innerHeight, movil = W <= 640, sinTxt = document.body.classList.contains("sin-textos");
+  const cab = document.querySelector(".cab").getBoundingClientRect().bottom, ley = $("leyenda");
+  if (movil) { ley.style.top = "auto"; ley.style.bottom = (H - document.querySelector(".player").getBoundingClientRect().top + 8) + "px"; }
+  else { ley.style.bottom = ""; ley.style.top = cab + 12 + "px"; }   // bajo el encabezado, aunque ocupe dos líneas
+  const r = ley.getBoundingClientRect();
+  let dx = 0, dy = 0;
+  if (!sinTxt && !movil) dx = -(r.right / 2);
+  if (!sinTxt && movil) dy = H / 2 - (cab + r.top) / 2;
+  else if (movil) dy = H / 2 - (cab + document.querySelector(".player").getBoundingClientRect().top) / 2;
+  ESC = movil ? Math.min(2.2, Math.max(1, Math.pow(1.6 / (W / H), 0.6))) : 1;
+  renderer.setSize(W, H); camera.aspect = W / H; camera.setViewOffset(W, H, dx, dy, W, H); camera.updateProjectionMatrix();
+}
+window.addEventListener("resize", tam);
+
+let previo = performance.now();
+function bucle(ahora) {
+  const dt = Math.min(0.1, (ahora - previo) / 1000); previo = ahora;
+  if (jugando) {
+    t += dt;
+    const i = capDe(Math.min(t, TOTAL - 1e-6));
+    if (repetir && t >= INI[i] + CAPS[i].dur - 0.02) t = INI[i];
+    if (t >= TOTAL) { t = TOTAL; play(false); }
+    pintar();
+  }
+  if (!manual) {
+    const c = camara(Math.min(t, TOTAL - 1e-6));
+    if (mezcla) {
+      const f = ease(Math.min(1, (ahora - mezcla.t0) / 900));
+      camera.position.lerpVectors(mezcla.p, c.pos, f); controls.target.lerpVectors(mezcla.g, c.tg, f);
+      if (f >= 1) mezcla = null;
+    } else { camera.position.copy(c.pos); controls.target.copy(c.tg); }
+  }
+  obra(Math.min(t, TOTAL - 1e-6));
+  controls.update(); renderer.render(scene, camera); requestAnimationFrame(bucle);
+}
+tam(); ir(0); requestAnimationFrame(bucle);
+</script>

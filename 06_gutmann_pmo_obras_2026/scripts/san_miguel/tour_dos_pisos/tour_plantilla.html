@@ -1,0 +1,176 @@
+<meta charset="utf-8">
+<title>Recorrido Sede San Miguel</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@500;600;700&family=IBM+Plex+Sans:wght@400;500;600&display=swap">
+<style>
+/* Base: el tour del Dren NEWAIR (película con capítulos). Se suma la caminata por dentro: joystick, mini plano, «Ir a» */
+:root{
+  --bg:#e6e9e4;--escena:#dde2dc;--panel:#f7f8f5;--fg:#1c2421;--muted:#5b6862;--line:#ccd3cc;
+  --accent:#1d5c74;--accent-fg:#ffffff;--obra:#d9772b;--velo:rgba(247,248,245,.86);
+  --sombra:0 8px 28px rgba(20,32,28,.18);
+  --f-display:"Barlow Condensed","Arial Narrow",system-ui,sans-serif;
+  --f-body:"IBM Plex Sans",system-ui,-apple-system,"Segoe UI",sans-serif;
+}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){
+  --bg:#121715;--escena:#1b2220;--panel:#1a201e;--fg:#e4eae6;--muted:#97a49d;--line:#2f3934;
+  --accent:#7cc2dc;--accent-fg:#0b1a20;--obra:#f0a061;--velo:rgba(26,32,30,.86);
+  --sombra:0 8px 28px rgba(0,0,0,.5);color-scheme:dark}}
+:root[data-theme="dark"]{
+  --bg:#121715;--escena:#1b2220;--panel:#1a201e;--fg:#e4eae6;--muted:#97a49d;--line:#2f3934;
+  --accent:#7cc2dc;--accent-fg:#0b1a20;--obra:#f0a061;--velo:rgba(26,32,30,.86);
+  --sombra:0 8px 28px rgba(0,0,0,.5);color-scheme:dark}
+*{box-sizing:border-box}
+html,body{height:100%}
+body{background:var(--bg);color:var(--fg);font:15px/1.5 var(--f-body);overflow:hidden;
+  padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px))}
+button,select{font:inherit;color:inherit;cursor:pointer}
+button:focus-visible,input:focus-visible,summary:focus-visible,select:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+#vista{position:fixed;inset:0;background:var(--escena);touch-action:none}
+#vista canvas{display:block;width:100%;height:100%}
+
+.cab{position:fixed;z-index:5;left:0;right:0;top:0;display:flex;align-items:center;gap:8px;
+  padding:calc(10px + env(safe-area-inset-top,0px)) max(16px,env(safe-area-inset-right,0px)) 10px max(16px,env(safe-area-inset-left,0px));
+  background:var(--velo);backdrop-filter:blur(8px);border-bottom:1px solid var(--line)}
+.cab .tit{flex:1;min-width:0}
+.cab h1{font:600 22px/1.05 var(--f-display);letter-spacing:.01em;margin:0;text-wrap:balance}
+.cab .sub{font-size:12px;color:var(--muted);letter-spacing:.04em;text-transform:uppercase}
+.btn{border:1px solid var(--line);background:var(--panel);border-radius:8px;padding:7px 12px;font-size:14px;display:inline-flex;align-items:center;gap:6px;white-space:nowrap}
+.btn[aria-pressed="true"],.btn.prim{background:var(--accent);color:var(--accent-fg);border-color:var(--accent)}
+
+.leyenda{position:fixed;z-index:4;left:max(16px,env(safe-area-inset-left,0px));top:calc(78px + env(safe-area-inset-top,0px));
+  width:250px;max-height:calc(100% - 210px - env(safe-area-inset-top,0px) - env(safe-area-inset-bottom,0px));overflow-y:auto;background:var(--velo);backdrop-filter:blur(8px);border:1px solid var(--line);
+  border-left:4px solid var(--obra);border-radius:10px;padding:12px 16px;box-shadow:var(--sombra)}
+.leyenda .num{font:600 13px var(--f-display);letter-spacing:.12em;text-transform:uppercase;color:var(--obra)}
+.leyenda h2{font:600 26px/1.05 var(--f-display);margin:2px 0 6px;text-wrap:balance}
+.leyenda p{margin:0;font-size:14px}
+
+.player{position:fixed;z-index:5;left:0;right:0;bottom:0;background:var(--velo);backdrop-filter:blur(8px);border-top:1px solid var(--line);
+  padding:10px max(16px,env(safe-area-inset-right,0px)) calc(10px + env(safe-area-inset-bottom,0px)) max(16px,env(safe-area-inset-left,0px));
+  display:flex;flex-direction:column;gap:8px}
+.linea{position:relative;height:30px}
+.linea input{position:absolute;inset:8px 0 auto;width:100%;margin:0;accent-color:var(--accent);height:14px}
+.tramos{position:absolute;left:0;right:0;top:0;height:6px;display:flex;gap:2px}
+.tramos button{border:0;padding:0;height:6px;border-radius:3px;background:var(--line);flex:var(--d) 1 0;min-width:4px}
+.tramos button.on{background:var(--obra)}
+.ctrl{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+.ctrl .play{width:46px;height:40px;justify-content:center;font-size:18px;background:var(--accent);color:var(--accent-fg);border-color:var(--accent)}
+.tiempo{font:500 14px var(--f-body);font-variant-numeric:tabular-nums;color:var(--muted);padding:0 4px}
+.cap-actual{font:600 16px var(--f-display);letter-spacing:.02em;min-width:0;flex:1;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+
+.caps[hidden]{display:none}
+.caps{position:fixed;z-index:6;top:0;right:0;bottom:0;width:min(380px,100%);background:var(--panel);border-left:1px solid var(--line);box-shadow:var(--sombra);
+  display:flex;flex-direction:column;padding:calc(14px + env(safe-area-inset-top,0px)) max(16px,env(safe-area-inset-right,0px)) calc(14px + env(safe-area-inset-bottom,0px)) 16px}
+.caps-cab{display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:8px}
+.caps-cab h2{font:600 24px var(--f-display);margin:0}
+.caps ol{list-style:none;margin:0;padding:0;overflow-y:auto;display:flex;flex-direction:column;gap:2px;min-height:0}
+.caps li{border-top:1px solid var(--line);padding:10px 0}
+.caps .ir{display:grid;grid-template-columns:auto 1fr auto;gap:10px;align-items:baseline;width:100%;text-align:left;border:0;background:none;padding:2px 0}
+.caps .ir .n{font:600 15px var(--f-display);color:var(--obra);font-variant-numeric:tabular-nums}
+.caps .ir .t{font:600 19px/1.15 var(--f-display)}
+.caps .ir .d{font-size:13px;color:var(--muted);font-variant-numeric:tabular-nums}
+.caps li.on .ir .t{color:var(--accent)}
+.caps details{margin:6px 0 0 26px;font-size:14px}
+.caps summary{color:var(--muted);font-size:13px;letter-spacing:.04em;text-transform:uppercase}
+.caps ul{margin:6px 0 0;padding-left:18px;color:var(--fg)}
+.caps ul li{border:0;padding:1px 0}
+.nota{font-size:12px;color:var(--muted);margin-top:auto;padding-top:10px}
+
+.tip{position:fixed;z-index:7;pointer-events:none;background:var(--panel);border:1px solid var(--line);border-radius:8px;padding:6px 10px;font-size:14px;box-shadow:var(--sombra);max-width:260px}
+.inicio{position:fixed;z-index:4;left:50%;top:44%;transform:translate(-50%,-50%);border:0;border-radius:999px;padding:16px 26px;
+  background:var(--accent);color:var(--accent-fg);font:600 22px var(--f-display);letter-spacing:.03em;box-shadow:var(--sombra)}
+.sin-textos .leyenda{display:none}
+
+/* caminata por dentro */
+.paseo[hidden]{display:none}
+.caminando .leyenda,.caminando .player,.caminando .inicio,.caminando #bCaps{display:none}
+.paseo-top{position:fixed;z-index:6;left:max(12px,env(safe-area-inset-left,0px));right:max(12px,env(safe-area-inset-right,0px));
+  top:calc(70px + env(safe-area-inset-top,0px));display:flex;gap:8px;align-items:center;flex-wrap:wrap;pointer-events:none}
+.paseo-top>*{pointer-events:auto}
+.donde{background:var(--velo);backdrop-filter:blur(8px);border:1px solid var(--line);border-left:4px solid var(--obra);border-radius:10px;padding:6px 12px;box-shadow:var(--sombra)}
+.donde b{font:600 19px/1.1 var(--f-display);display:block}
+.donde span{font-size:12px;color:var(--muted)}
+.paseo-top select{border:1px solid var(--line);background:var(--panel);border-radius:8px;padding:7px 10px;font-size:14px;max-width:210px}
+#mini{position:fixed;z-index:6;right:max(12px,env(safe-area-inset-right,0px));top:calc(132px + env(safe-area-inset-top,0px));
+  width:188px;height:168px;background:var(--velo);backdrop-filter:blur(8px);border:1px solid var(--line);border-radius:10px;box-shadow:var(--sombra);touch-action:none}
+.joy{position:fixed;z-index:6;left:max(18px,env(safe-area-inset-left,0px));bottom:calc(18px + env(safe-area-inset-bottom,0px));width:132px;height:132px;border-radius:50%;
+  background:color-mix(in srgb,var(--panel) 70%,transparent);border:1px solid var(--line);box-shadow:var(--sombra);touch-action:none}
+.joy i{position:absolute;left:50%;top:50%;width:56px;height:56px;margin:-28px 0 0 -28px;border-radius:50%;background:var(--accent);opacity:.9;box-shadow:var(--sombra)}
+.ayuda{position:fixed;z-index:6;left:50%;transform:translateX(-50%);bottom:calc(20px + env(safe-area-inset-bottom,0px));max-width:min(92vw,520px);
+  background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:8px 12px;font-size:13px;box-shadow:var(--sombra);text-align:center}
+.vuelo{position:fixed;z-index:6;left:max(170px,calc(env(safe-area-inset-left,0px) + 170px));bottom:calc(30px + env(safe-area-inset-bottom,0px));display:flex;flex-direction:column;gap:8px}
+.vuelo .btn{width:52px;height:46px;justify-content:center;font-size:18px}
+.mira{position:fixed;z-index:5;left:50%;top:50%;width:6px;height:6px;margin:-3px 0 0 -3px;border-radius:50%;background:#fff;box-shadow:0 0 0 1px rgba(0,0,0,.4);pointer-events:none}
+@media (max-width:640px){
+  .leyenda{left:16px;right:16px;width:auto;max-height:30vh;padding:8px 12px}
+  .leyenda h2{font-size:18px}
+  .leyenda p{font-size:12.5px;line-height:1.4}
+  .cap-actual{order:9;flex-basis:100%}
+  .cab h1{font-size:19px}
+  #mini{width:142px;height:128px;top:auto;bottom:calc(18px + env(safe-area-inset-bottom,0px))}
+  .ayuda{bottom:calc(160px + env(safe-area-inset-bottom,0px))}
+}
+@media (prefers-reduced-motion: reduce){*{transition:none!important}}
+</style>
+
+<div id="vista" aria-label="Modelo 3D de la obra San Miguel"></div>
+
+<header class="cab">
+  <div class="tit"><h1>Sede San Miguel</h1><div class="sub">Casona y salas nuevas · recorrido de la obra</div></div>
+  <button class="btn" id="bTechos" aria-pressed="true" title="Mostrar u ocultar cielos y techumbres">Techos</button>
+  <button class="btn" id="bCorte" aria-pressed="false" title="Cortar el modelo a la altura de la cintura para ver la planta">Sin corte</button>
+  <button class="btn" id="bCaminar" aria-pressed="false" title="Recorrer los dos pisos por dentro, a la altura de los ojos">Caminar</button>
+  <button class="btn" id="bCaps" aria-expanded="false" aria-controls="caps">Capítulos</button>
+</header>
+
+<button class="inicio" id="inicio">▶ Ver el recorrido</button>
+
+<section class="leyenda" id="leyenda" aria-live="polite">
+  <div class="num" id="lNum"></div>
+  <h2 id="lTit"></h2>
+  <p id="lTxt"></p>
+</section>
+
+<aside class="caps" id="caps" hidden>
+  <div class="caps-cab"><h2>Capítulos</h2><button class="btn" id="cCerrar">Cerrar</button></div>
+  <ol id="lista"></ol>
+  <div class="nota">Toca un capítulo para ir a él. Puedes pausar y girar el modelo con el dedo o el mouse en cualquier momento. «Caminar» te deja recorrer los dos pisos por dentro; la escalera une la casona.</div>
+</aside>
+
+<div class="paseo" id="paseo" hidden>
+  <div class="paseo-top">
+    <div class="donde" aria-live="polite"><b id="dNom">Hall</b><span id="dSup"></span></div>
+    <select id="irA" aria-label="Ir a un recinto"></select>
+    <button class="btn" id="bVel" aria-pressed="false" title="Cambiar la velocidad de la caminata: 2×, 4× o ½×">Velocidad 2×</button>
+    <button class="btn" id="bVolar" aria-pressed="false" title="Volar y atravesar muros">Volar</button>
+    <button class="btn prim" id="bSalir">Salir</button>
+  </div>
+  <canvas id="mini" aria-label="Mini plano: toca un punto para ir ahí"></canvas>
+  <div class="vuelo" id="vuelo" hidden><button class="btn" id="bSube" aria-label="Subir">▲</button><button class="btn" id="bBaja" aria-label="Bajar">▼</button></div>
+  <div class="joy" id="joy" aria-label="Joystick: arrastra para avanzar y girar"><i id="joyK"></i></div>
+  <div class="ayuda" id="ayuda" hidden></div>
+  <div class="mira"></div>
+</div>
+
+<div class="tip" id="tip" hidden></div>
+
+<footer class="player">
+  <div class="linea">
+    <div class="tramos" id="tramos"></div>
+    <input type="range" id="barra" min="0" max="1000" step="1" value="0" aria-label="Línea de tiempo del recorrido">
+  </div>
+  <div class="ctrl">
+    <button class="btn" id="bAnt" aria-label="Capítulo anterior">⏮</button>
+    <button class="btn" id="bAtras" aria-label="Retroceder 10 segundos">↺ 10 s</button>
+    <button class="btn play" id="bPlay" aria-label="Reproducir">▶</button>
+    <button class="btn" id="bSig" aria-label="Capítulo siguiente">⏭</button>
+    <span class="tiempo" id="tiempo">0:00 / 0:00</span>
+    <span class="cap-actual" id="capActual"></span>
+    <button class="btn" id="bRepetir" aria-pressed="false" title="Repetir el capítulo actual en vez de seguir al siguiente">Repetir capítulo</button>
+    <button class="btn" id="bTextos" aria-pressed="true" title="Mostrar u ocultar los textos">Textos</button>
+  </div>
+</footer>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
+<script>

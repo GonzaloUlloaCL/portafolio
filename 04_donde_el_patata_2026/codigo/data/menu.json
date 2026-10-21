@@ -1,0 +1,752 @@
+{
+  "_meta": {
+    "fuente": "https://patatahuechuraba.my.canva.site/",
+    "verificado": "2026-06-22",
+    "moneda": "CLP",
+    "nota": "Derivado de menu.md. La IA NO debe inventar precios: solo usar estos.",
+    "actualizado": "2026-08-03: sincronizado data/menu.json (respaldo empaquetado) contra el menu.json real del POS de Christian -- iba desactualizado (Lata CCU a $2.000/$3.500 en vez de $1.500/$3.000 real, y faltaban Coca-Cola 591ml y un Mayo Patata de Papas Fritas). Ver sesion 3-ago cont. 3."
+  },
+  "local": {
+    "nombre": "Donde el Patata",
+    "rubro": "Comida rápida",
+    "comuna": "Huechuraba",
+    "whatsapp": "+56 9 XXXX XXXX",
+    "sitio": "https://patatahuechuraba.my.canva.site/",
+    "horario": {
+      "lunes_a_viernes": "12:00-23:59",
+      "sabado": "13:00-23:59",
+      "domingo": "18:00-23:59"
+    },
+    "delivery": {
+      "disponible": true,
+      "tarifa_minima": 1500,
+      "nota_interna": "Reparto propio. NUNCA mencionar al cliente que es propio. La tarifa final por zona esta pendiente."
+    },
+    "pago": {
+      "metodos": [
+        "efectivo",
+        "tarjeta",
+        "transferencia"
+      ],
+      "transferencia": {
+        "titular": "Ulloa Y Silva Spa",
+        "rut": "77.441.532-7",
+        "banco": "Banco de Chile",
+        "tipo_cuenta": "Cuenta Corriente",
+        "numero": "XXXX-XXXX-XX",
+        "email": "admin@ejemplo.cl"
+      }
+    }
+  },
+  "categorias": [
+    {
+      "nombre": "Vienesas",
+      "etiqueta": "Vienesa",
+      "nota": "Tamano XL 30cm o Normal 22cm; promo 2x",
+      "productos": [
+        {
+          "nombre": "Vienesa Italiano",
+          "ingredientes": "tomate, palta y mayo patata",
+          "xl_30cm": {
+            "precio": 3200,
+            "precio_2x": 5700
+          },
+          "normal_22cm": {
+            "precio": 2700,
+            "precio_2x": 5000
+          },
+          "grupo": "vienesa_italiano"
+        },
+        {
+          "nombre": "Vienesa Completo",
+          "ingredientes": "chucrut, americana, tomate y mayo patata",
+          "xl_30cm": {
+            "precio": 3200,
+            "precio_2x": 5700
+          },
+          "normal_22cm": {
+            "precio": 2700,
+            "precio_2x": 5000
+          },
+          "grupo": "vienesa_completo_dinamico"
+        },
+        {
+          "nombre": "Vienesa Queso",
+          "ingredientes": "vienesa, queso",
+          "xl_30cm": {
+            "precio": 3600,
+            "precio_2x": 6600
+          },
+          "normal_22cm": {
+            "precio": 3000,
+            "precio_2x": 5500
+          }
+        },
+        {
+          "nombre": "Vienesa Dinamico",
+          "ingredientes": "chucrut, americana, tomate, palta y mayo patata",
+          "xl_30cm": {
+            "precio": 3600,
+            "precio_2x": 6600
+          },
+          "normal_22cm": {
+            "precio": 3000,
+            "precio_2x": 5500
+          },
+          "grupo": "vienesa_completo_dinamico"
+        },
+        {
+          "nombre": "Vienesa Tomate/Palta",
+          "ingredientes": "tomate y palta",
+          "xl_30cm": {
+            "precio": 3200,
+            "precio_2x": 5700
+          },
+          "normal_22cm": {
+            "precio": 2700,
+            "precio_2x": 5000
+          },
+          "grupo": "vienesa_italiano"
+        },
+        {
+          "nombre": "Vienesa Palta/Mayo",
+          "ingredientes": "palta y mayo patata",
+          "xl_30cm": {
+            "precio": 3200,
+            "precio_2x": 5700
+          },
+          "normal_22cm": {
+            "precio": 2700,
+            "precio_2x": 5000
+          },
+          "grupo": "vienesa_italiano"
+        },
+        {
+          "nombre": "Vienesa Tomate/Mayo",
+          "ingredientes": "tomate y mayo patata",
+          "xl_30cm": {
+            "precio": 3200,
+            "precio_2x": 5700
+          },
+          "normal_22cm": {
+            "precio": 2700,
+            "precio_2x": 5000
+          },
+          "grupo": "vienesa_italiano"
+        },
+        {
+          "nombre": "Vienesa Solo tomate",
+          "ingredientes": "solo tomate",
+          "xl_30cm": {
+            "precio": 3200,
+            "precio_2x": 5700
+          },
+          "normal_22cm": {
+            "precio": 2700,
+            "precio_2x": 5000
+          },
+          "grupo": "vienesa_italiano"
+        },
+        {
+          "nombre": "Vienesa Solo palta",
+          "ingredientes": "solo palta",
+          "xl_30cm": {
+            "precio": 3200,
+            "precio_2x": 5700
+          },
+          "normal_22cm": {
+            "precio": 2700,
+            "precio_2x": 5000
+          },
+          "grupo": "vienesa_italiano"
+        },
+        {
+          "nombre": "Vienesa Solo mayo",
+          "ingredientes": "solo mayo patata",
+          "xl_30cm": {
+            "precio": 3200,
+            "precio_2x": 5700
+          },
+          "normal_22cm": {
+            "precio": 2700,
+            "precio_2x": 5000
+          },
+          "grupo": "vienesa_italiano"
+        },
+        {
+          "nombre": "Vienesa Solo vienesa",
+          "ingredientes": "solo la vienesa",
+          "xl_30cm": {
+            "precio": 3200,
+            "precio_2x": 5700
+          },
+          "normal_22cm": {
+            "precio": 2700,
+            "precio_2x": 5000
+          },
+          "grupo": "vienesa_italiano"
+        }
+      ]
+    },
+    {
+      "nombre": "Churrascos",
+      "etiqueta": "Churrasco",
+      "nota": "Promo 2x en productos iguales",
+      "productos": [
+        {
+          "nombre": "Churrasco Italiano",
+          "ingredientes": "tomate, palta y mayo patata",
+          "precio": 4900,
+          "precio_2x": 8900,
+          "grupo": "churrasco_italiano"
+        },
+        {
+          "nombre": "Churrasco Completo",
+          "ingredientes": "chucrut, americana, tomate y mayo patata",
+          "precio": 4900,
+          "precio_2x": 8900,
+          "grupo": "churrasco_completo_dinamico"
+        },
+        {
+          "nombre": "Churrasco Dinamico",
+          "ingredientes": "tomate, palta, chucrut, americana y mayo patata",
+          "precio": 5200,
+          "precio_2x": 9200,
+          "grupo": "churrasco_completo_dinamico"
+        },
+        {
+          "nombre": "Churrasco Barros Luco",
+          "ingredientes": "queso",
+          "precio": 5200,
+          "precio_2x": 9200
+        },
+        {
+          "nombre": "Churrasco Chacarero",
+          "ingredientes": "tomate, poroto verde, aji verde y mayo patata",
+          "precio": 5200,
+          "precio_2x": 9200
+        },
+        {
+          "nombre": "Churrasco Tomate/Palta",
+          "ingredientes": "tomate y palta",
+          "precio": 4900,
+          "precio_2x": 8900,
+          "grupo": "churrasco_italiano"
+        },
+        {
+          "nombre": "Churrasco Palta/Mayo",
+          "ingredientes": "palta y mayo patata",
+          "precio": 4900,
+          "precio_2x": 8900,
+          "grupo": "churrasco_italiano"
+        },
+        {
+          "nombre": "Churrasco Tomate/Mayo",
+          "ingredientes": "tomate y mayo patata",
+          "precio": 4900,
+          "precio_2x": 8900,
+          "grupo": "churrasco_italiano"
+        },
+        {
+          "nombre": "Churrasco Solo tomate",
+          "ingredientes": "solo tomate",
+          "precio": 4900,
+          "precio_2x": 8900,
+          "grupo": "churrasco_italiano"
+        },
+        {
+          "nombre": "Churrasco Solo palta",
+          "ingredientes": "solo palta",
+          "precio": 4900,
+          "precio_2x": 8900,
+          "grupo": "churrasco_italiano"
+        },
+        {
+          "nombre": "Churrasco Solo mayo",
+          "ingredientes": "solo mayo patata",
+          "precio": 4900,
+          "precio_2x": 8900,
+          "grupo": "churrasco_italiano"
+        },
+        {
+          "nombre": "Churrasco Solo carne",
+          "ingredientes": "solo la carne",
+          "precio": 4900,
+          "precio_2x": 8900,
+          "grupo": "churrasco_italiano"
+        }
+      ]
+    },
+    {
+      "nombre": "Mechadas",
+      "etiqueta": "Mechada",
+      "nota": "Precio unico",
+      "productos": [
+        {
+          "nombre": "Mechada Italiano",
+          "ingredientes": "tomate, palta y mayo patata",
+          "precio": 5600,
+          "sin_2x_confirmado": true
+        },
+        {
+          "nombre": "Mechada Completo",
+          "ingredientes": "chucrut, americana, tomate y mayo patata",
+          "precio": 5600,
+          "sin_2x_confirmado": true
+        },
+        {
+          "nombre": "Mechada Dinamico",
+          "ingredientes": "tomate, palta, chucrut, americana y mayo patata",
+          "precio": 5800,
+          "sin_2x_confirmado": true
+        },
+        {
+          "nombre": "Mechada Barros Luco",
+          "ingredientes": "queso",
+          "precio": 5800,
+          "sin_2x_confirmado": true
+        },
+        {
+          "nombre": "Mechada Chacarero",
+          "ingredientes": "tomate, poroto verde, aji verde y mayo patata",
+          "precio": 5800,
+          "sin_2x_confirmado": true
+        },
+        {
+          "nombre": "Mechada Tomate/Palta",
+          "ingredientes": "tomate y palta",
+          "precio": 5600,
+          "sin_2x_confirmado": true
+        },
+        {
+          "nombre": "Mechada Palta/Mayo",
+          "ingredientes": "palta y mayo patata",
+          "precio": 5600,
+          "sin_2x_confirmado": true
+        },
+        {
+          "nombre": "Mechada Tomate/Mayo",
+          "ingredientes": "tomate y mayo patata",
+          "precio": 5600,
+          "sin_2x_confirmado": true
+        },
+        {
+          "nombre": "Mechada Solo tomate",
+          "ingredientes": "solo tomate",
+          "precio": 5600,
+          "sin_2x_confirmado": true
+        },
+        {
+          "nombre": "Mechada Solo palta",
+          "ingredientes": "solo palta",
+          "precio": 5600,
+          "sin_2x_confirmado": true
+        },
+        {
+          "nombre": "Mechada Solo mayo",
+          "ingredientes": "solo mayo patata",
+          "precio": 5600,
+          "sin_2x_confirmado": true
+        },
+        {
+          "nombre": "Mechada Solo carne",
+          "ingredientes": "solo la carne mechada",
+          "precio": 5600,
+          "sin_2x_confirmado": true
+        }
+      ]
+    },
+    {
+      "nombre": "Especiales",
+      "etiqueta": "Especial",
+      "nota": "Disponibles como Churrasco o Mechada",
+      "productos": [
+        {
+          "nombre": "Especial Barros Champi",
+          "ingredientes": "champinon, queso y mayo patata",
+          "precio_churrasco": 5600,
+          "precio_mechada": 6200
+        },
+        {
+          "nombre": "Especial Kayser",
+          "ingredientes": "tomate, palta, mayo patata y queso",
+          "precio_churrasco": 5600,
+          "precio_mechada": 6200
+        },
+        {
+          "nombre": "Especial Brasileno",
+          "ingredientes": "palta, mayo patata y queso",
+          "precio_churrasco": 5600,
+          "precio_mechada": 6200
+        },
+        {
+          "nombre": "Especial Suizo",
+          "ingredientes": "tomate, mayo patata y queso",
+          "precio_churrasco": 5600,
+          "precio_mechada": 6200
+        },
+        {
+          "nombre": "Especial Che Milico",
+          "ingredientes": "cebolla y huevo frito",
+          "precio_churrasco": 5800,
+          "precio_mechada": 6200
+        }
+      ]
+    },
+    {
+      "nombre": "As",
+      "etiqueta": "As",
+      "nota": "Tamano XL 30cm o Normal 22cm; promo 2x",
+      "productos": [
+        {
+          "nombre": "As Italiano",
+          "ingredientes": "tomate, palta y mayo patata",
+          "xl_30cm": {
+            "precio": 4900,
+            "precio_2x": 8900
+          },
+          "normal_22cm": {
+            "precio": 3500,
+            "precio_2x": 6200
+          },
+          "grupo": "as_italiano"
+        },
+        {
+          "nombre": "As Completo",
+          "ingredientes": "chucrut, americana, tomate y mayo patata",
+          "xl_30cm": {
+            "precio": 4900,
+            "precio_2x": 8900
+          },
+          "normal_22cm": {
+            "precio": 3500,
+            "precio_2x": 6200
+          },
+          "grupo": "as_completo_dinamico"
+        },
+        {
+          "nombre": "As Queso",
+          "ingredientes": "queso",
+          "xl_30cm": {
+            "precio": 5200,
+            "precio_2x": 9200
+          },
+          "normal_22cm": {
+            "precio": 3900,
+            "precio_2x": 6900
+          }
+        },
+        {
+          "nombre": "As Dinamico",
+          "ingredientes": "chucrut, americana, tomate, palta y mayo patata",
+          "xl_30cm": {
+            "precio": 5200,
+            "precio_2x": 9200
+          },
+          "normal_22cm": {
+            "precio": 3900,
+            "precio_2x": 6900
+          },
+          "grupo": "as_completo_dinamico"
+        },
+        {
+          "nombre": "As Tomate/Palta",
+          "ingredientes": "tomate y palta",
+          "xl_30cm": {
+            "precio": 4900,
+            "precio_2x": 8900
+          },
+          "normal_22cm": {
+            "precio": 3500,
+            "precio_2x": 6200
+          },
+          "grupo": "as_italiano"
+        },
+        {
+          "nombre": "As Palta/Mayo",
+          "ingredientes": "palta y mayo patata",
+          "xl_30cm": {
+            "precio": 4900,
+            "precio_2x": 8900
+          },
+          "normal_22cm": {
+            "precio": 3500,
+            "precio_2x": 6200
+          },
+          "grupo": "as_italiano"
+        },
+        {
+          "nombre": "As Tomate/Mayo",
+          "ingredientes": "tomate y mayo patata",
+          "xl_30cm": {
+            "precio": 4900,
+            "precio_2x": 8900
+          },
+          "normal_22cm": {
+            "precio": 3500,
+            "precio_2x": 6200
+          },
+          "grupo": "as_italiano"
+        },
+        {
+          "nombre": "As Solo tomate",
+          "ingredientes": "solo tomate",
+          "xl_30cm": {
+            "precio": 4900,
+            "precio_2x": 8900
+          },
+          "normal_22cm": {
+            "precio": 3500,
+            "precio_2x": 6200
+          },
+          "grupo": "as_italiano"
+        },
+        {
+          "nombre": "As Solo palta",
+          "ingredientes": "solo palta",
+          "xl_30cm": {
+            "precio": 4900,
+            "precio_2x": 8900
+          },
+          "normal_22cm": {
+            "precio": 3500,
+            "precio_2x": 6200
+          },
+          "grupo": "as_italiano"
+        },
+        {
+          "nombre": "As Solo mayo",
+          "ingredientes": "solo mayo patata",
+          "xl_30cm": {
+            "precio": 4900,
+            "precio_2x": 8900
+          },
+          "normal_22cm": {
+            "precio": 3500,
+            "precio_2x": 6200
+          },
+          "grupo": "as_italiano"
+        },
+        {
+          "nombre": "As Solo carne",
+          "ingredientes": "solo la carne",
+          "xl_30cm": {
+            "precio": 4900,
+            "precio_2x": 8900
+          },
+          "normal_22cm": {
+            "precio": 3500,
+            "precio_2x": 6200
+          },
+          "grupo": "as_italiano"
+        }
+      ]
+    },
+    {
+      "nombre": "Papas Fritas",
+      "nota": "Tamanos: individual / mediana / grande (null = no disponible). Nuggets y Empanaditas van por porcion: chica (6u) o grande (10u).",
+      "productos": [
+        {
+          "nombre": "Papas Fritas",
+          "individual": null,
+          "mediana": 2500,
+          "grande": 4000,
+          "desagrupar": true
+        },
+        {
+          "nombre": "Salchipapas",
+          "individual": null,
+          "mediana": 3000,
+          "grande": 4500,
+          "desagrupar": true
+        },
+        {
+          "nombre": "Chorrillana",
+          "ingredientes": "papas fritas, cebolla frita, carne, vienesa y huevo frito",
+          "individual": 6200,
+          "mediana": 11500,
+          "grande": 18500
+        },
+        {
+          "nombre": "Mayo Patata",
+          "precio": 500
+        },
+        {
+          "nombre": "Nuggets",
+          "precio_6": 3000,
+          "precio_10": 4000,
+          "desagrupar": true
+        },
+        {
+          "nombre": "Empanaditas",
+          "precio_6": 3000,
+          "precio_10": 4000,
+          "desagrupar": true
+        }
+      ]
+    },
+    {
+      "nombre": "Boxes Pollo Crispy",
+      "productos": [
+        {
+          "nombre": "Box 1",
+          "contenido": "2 alitas, 2 tiras de pollo, 3 pulpitos, 2 aros de cebolla, 2 salsas, papas fritas (200 gr)",
+          "precio": 6500
+        },
+        {
+          "nombre": "Box 2",
+          "contenido": "2 alitas, 5 nuggets, 6 pulpitos, 2 salsas, papas fritas (200 gr)",
+          "precio": 7000
+        },
+        {
+          "nombre": "Box 3",
+          "contenido": "4 alitas, 4 nuggets, 6 pulpitos, 6 aros de cebolla, 4 tiras de pollo, 4 empanadas de queso, 3 salsas, papas fritas (300 gr)",
+          "precio": 13500
+        },
+        {
+          "nombre": "Box 4",
+          "contenido": "8 alitas, 10 nuggets, 12 pulpitos, 6 tiras de pollo, 10 aros de cebolla, 8 empanadas, 4 salsas, papas fritas (400 gr)",
+          "precio": 24000
+        },
+        {
+          "nombre": "Box 1 + Bebida",
+          "contenido": "Box 1 + una Lata CCU",
+          "precio": 7500,
+          "combo": [
+            {
+              "categoria": "Boxes Pollo Crispy",
+              "producto": "Box 1"
+            },
+            {
+              "categoria": "Bebestibles",
+              "producto": "Lata CCU"
+            }
+          ]
+        },
+        {
+          "nombre": "Pollo entero con papas grandes + bebida 2 Lt.",
+          "precio": 25000,
+          "combo": [
+            {
+              "categoria": "Papas Fritas",
+              "producto": "Papas Fritas"
+            },
+            {
+              "categoria": "Boxes Pollo Crispy",
+              "producto": "Box 1"
+            },
+            {
+              "categoria": "Bebestibles",
+              "producto": "Bebida 3 LT CCU"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "nombre": "Agregados",
+      "productos": [
+        {
+          "nombre": "Agregado Vienesa",
+          "precio": 500
+        },
+        {
+          "nombre": "Tomate",
+          "precio": 500
+        },
+        {
+          "nombre": "Poroto",
+          "precio": 1000
+        },
+        {
+          "nombre": "Cebolla",
+          "precio": 1000
+        },
+        {
+          "nombre": "Palta",
+          "precio": 1000
+        },
+        {
+          "nombre": "Queso",
+          "precio": 1200
+        },
+        {
+          "nombre": "Carne",
+          "precio": 2000
+        },
+        {
+          "nombre": "Huevo",
+          "precio": 700
+        }
+      ]
+    },
+    {
+      "nombre": "Salsas",
+      "nota": "potes 2.5 onz - 70 gr",
+      "productos": [
+        {
+          "nombre": "Mayo Patata",
+          "precio": 500
+        },
+        {
+          "nombre": "Ketchup",
+          "precio": 400
+        },
+        {
+          "nombre": "Mostaza",
+          "precio": 400
+        },
+        {
+          "nombre": "Salsa de Queso",
+          "precio": 500
+        },
+        {
+          "nombre": "Salsa BBQ",
+          "precio": 500
+        }
+      ]
+    },
+    {
+      "nombre": "Bebestibles",
+      "productos": [
+        {
+          "nombre": "Fruna 500 ml",
+          "precio": 800
+        },
+        {
+          "nombre": "Bebida 3 LT CCU",
+          "precio": 3800
+        },
+        {
+          "nombre": "Agua Mineral 500 ml",
+          "precio": 900
+        },
+        {
+          "nombre": "Te o Cafe",
+          "precio": 1000
+        },
+        {
+          "nombre": "Lata CCU",
+          "precio": 1500,
+          "grupo": "g2x_bebestibles_mrcpdo7q",
+          "promo_2x": true,
+          "precio_2x": 3000,
+          "variedades": [
+            "Pepsi",
+            "Pepsi Zero",
+            "Bilz",
+            "Pap",
+            "Kem",
+            "Limón Soda"
+          ],
+          "desagrupar": true,
+          "nota": "Sabores en botones de 1 clic (sujeto a stock); si no calza con ninguno, usar el boton generico y anotar el sabor real en el comentario del item."
+        },
+        {
+          "nombre": "Coca-Cola 591ml",
+          "precio": 2000
+        }
+      ]
+    }
+  ]
+}

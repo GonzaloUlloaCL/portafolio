@@ -1,0 +1,1026 @@
+<title>Sede San Miguel en 3D</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@500;600;700&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap">
+<style>
+/* Escena a pantalla completa; panel de obra a la izquierda (abajo en el celular) y ficha del recinto a la derecha. */
+:root {
+  --bg: #e9ebe8;          /* cielo de obra, gris con sesgo verde */
+  --panel: rgba(250, 250, 247, 0.94);
+  --ink: #1d2427;
+  --ink-2: #566166;
+  --line: #cfd4d0;
+  --muro: #c8372d;        /* el rojo del plano: muro nuevo */
+  --muro-suave: rgba(200, 55, 45, 0.12);
+  --casona: #22282b;      /* el negro del plano: muro existente */
+  --ok-plano: #2f7d4a; --ok-plano-bg: #dcefe1;
+  --supuesto: #2a5f8f; --supuesto-bg: #dde9f5;
+  --pendiente: #9a5b00; --pendiente-bg: #fbecc6;
+  --global: #4d5458; --global-bg: #e6e8e8;
+  --confirmado: #2e5a1f; --confirmado-bg: #c9e3b6;
+  --f-display: "Barlow Condensed", "Arial Narrow", sans-serif;
+  --f-body: "IBM Plex Sans", system-ui, sans-serif;
+  --f-mono: "IBM Plex Mono", ui-monospace, monospace;
+  --r: 6px;
+}
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) {
+  --bg: #15191b; --panel: rgba(27, 32, 35, 0.94); --ink: #e8ebe9; --ink-2: #9aa6aa; --line: #343c40;
+  --muro: #ec5b4f; --muro-suave: rgba(236, 91, 79, 0.16); --casona: #d9dedf;
+  --ok-plano: #7fd19a; --ok-plano-bg: #1f3a29; --supuesto: #8cbdf0; --supuesto-bg: #1d3044;
+  --pendiente: #f1bd5c; --pendiente-bg: #3d2f12; --global: #b6bec2; --global-bg: #2b3134;
+  --confirmado: #a8dc86; --confirmado-bg: #26391b; color-scheme: dark; } }
+:root[data-theme="dark"] {
+  --bg: #15191b; --panel: rgba(27, 32, 35, 0.94); --ink: #e8ebe9; --ink-2: #9aa6aa; --line: #343c40;
+  --muro: #ec5b4f; --muro-suave: rgba(236, 91, 79, 0.16); --casona: #d9dedf;
+  --ok-plano: #7fd19a; --ok-plano-bg: #1f3a29; --supuesto: #8cbdf0; --supuesto-bg: #1d3044;
+  --pendiente: #f1bd5c; --pendiente-bg: #3d2f12; --global: #b6bec2; --global-bg: #2b3134;
+  --confirmado: #a8dc86; --confirmado-bg: #26391b; color-scheme: dark; }
+
+html, body { height: 100%; }
+body { background: var(--bg); color: var(--ink); font: 14px/1.45 var(--f-body); overflow: hidden; }
+#escena { position: fixed; inset: 0; }
+#escena canvas { display: block; touch-action: none; }
+button, input, select { font: inherit; color: inherit; }
+button { cursor: pointer; }
+:focus-visible { outline: 2px solid var(--muro); outline-offset: 2px; }
+
+.cabecera { position: fixed; top: calc(env(safe-area-inset-top, 0px) + 12px); left: 16px; z-index: 3; pointer-events: none; max-width: min(460px, calc(100% - 32px)); background: var(--panel); border: 1px solid var(--line); border-radius: 10px; padding: 10px 14px 12px; backdrop-filter: blur(8px); }
+.cabecera .obra { font: 600 12px/1 var(--f-mono); letter-spacing: .08em; text-transform: uppercase; color: var(--ink-2); }
+.cabecera h1 { margin: 4px 0 6px; font: 700 clamp(28px, 4.2vw, 44px)/0.95 var(--f-display); letter-spacing: .01em; text-wrap: balance; }
+.cabecera h1 span { color: var(--muro); }
+.resumen { display: flex; flex-wrap: wrap; gap: 4px 6px; pointer-events: auto; }
+
+.chip { display: inline-flex; align-items: center; gap: 4px; padding: 1px 7px; border-radius: 999px; font: 500 11.5px/1.6 var(--f-mono); white-space: nowrap; font-variant-numeric: tabular-nums; }
+.e-Plano { color: var(--ok-plano); background: var(--ok-plano-bg); }
+.e-Supuesto { color: var(--supuesto); background: var(--supuesto-bg); }
+.e-Pendiente { color: var(--pendiente); background: var(--pendiente-bg); }
+.e-Global { color: var(--global); background: var(--global-bg); }
+.e-Confirmado { color: var(--confirmado); background: var(--confirmado-bg); }
+.chip.tot { color: var(--ink); background: var(--panel); border: 1px solid var(--line); }
+
+.panel { position: fixed; z-index: 4; left: 16px; bottom: calc(env(safe-area-inset-bottom, 0px) + 16px); width: 352px; max-height: calc(100% - 210px);
+  display: flex; flex-direction: column; background: var(--panel); border: 1px solid var(--line); border-radius: 10px; backdrop-filter: blur(8px); box-shadow: 0 8px 30px rgba(0,0,0,.12); }
+.pestanas { display: grid; grid-template-columns: repeat(4, 1fr); border-bottom: 1px solid var(--line); }
+.pestanas button { background: none; border: 0; padding: 10px 4px 9px; font: 600 15px/1 var(--f-display); letter-spacing: .04em; text-transform: uppercase; color: var(--ink-2); border-bottom: 2px solid transparent; }
+.pestanas button[aria-selected="true"] { color: var(--ink); border-bottom-color: var(--muro); }
+.cuerpo { overflow-y: auto; padding: 12px 14px 14px; display: grid; gap: 12px; min-height: 0; }
+.nota { font-size: 12px; color: var(--ink-2); margin: 0; }
+.nota b { color: var(--ink); font-weight: 600; }
+
+.etapas { list-style: none; margin: 0; padding: 0; display: grid; gap: 2px; }
+.etapa { display: grid; grid-template-columns: 30px 1fr auto; gap: 2px 10px; align-items: start; width: 100%; text-align: left; background: none; border: 1px solid transparent; border-radius: var(--r); padding: 7px 8px; }
+.etapa:hover { background: var(--muro-suave); }
+.etapa .n { grid-row: span 2; font: 700 24px/1 var(--f-display); color: var(--ink-2); padding-top: 1px; }
+.etapa .t { font-weight: 600; }
+.etapa .p { font: 500 11.5px/1.5 var(--f-mono); color: var(--ink-2); white-space: nowrap; }
+.etapa .d { grid-column: 2 / 4; font-size: 12px; color: var(--ink-2); }
+.etapa.hecha .n { color: var(--ink); }
+.etapa.actual { border-color: var(--muro); background: var(--muro-suave); }
+.etapa.actual .n { color: var(--muro); }
+.acciones { display: flex; gap: 8px; flex-wrap: wrap; }
+.btn { border: 1px solid var(--line); background: var(--panel); border-radius: var(--r); padding: 7px 12px; font-weight: 600; }
+.btn.prim { background: var(--muro); border-color: var(--muro); color: #fff; }
+.btn[aria-pressed="true"] { border-color: var(--ink); background: var(--ink); color: var(--bg); }
+
+.capa { display: grid; grid-template-columns: 18px 1fr; gap: 2px 10px; align-items: center; padding: 6px 2px; }
+.capa input { margin: 0; accent-color: var(--muro); width: 16px; height: 16px; }
+.capa .sw { display: inline-block; width: 22px; height: 4px; border-radius: 2px; vertical-align: middle; margin-right: 6px; }
+.capa small { grid-column: 2; color: var(--ink-2); font-size: 12px; }
+.campo { display: grid; gap: 4px; }
+.campo label { font-weight: 600; display: flex; justify-content: space-between; gap: 8px; }
+.campo output { font: 500 13px var(--f-mono); color: var(--muro); font-variant-numeric: tabular-nums; }
+.campo input[type=range] { width: 100%; accent-color: var(--muro); }
+.campo select { border: 1px solid var(--line); border-radius: var(--r); background: var(--panel); padding: 5px 8px; }
+.fila { display: flex; gap: 6px; flex-wrap: wrap; }
+.seg { display: inline-flex; border: 1px solid var(--line); border-radius: var(--r); overflow: hidden; }
+.seg button { border: 0; background: none; padding: 6px 10px; font-weight: 500; }
+.seg button + button { border-left: 1px solid var(--line); }
+.seg button[aria-pressed="true"] { background: var(--ink); color: var(--bg); }
+h3 { margin: 0; font: 600 15px/1.1 var(--f-display); letter-spacing: .06em; text-transform: uppercase; color: var(--ink-2); }
+.lista-rec { display: flex; flex-wrap: wrap; gap: 4px; }
+.lista-rec button { border: 1px solid var(--line); background: none; border-radius: 4px; padding: 2px 7px; font: 500 12px/1.6 var(--f-body); }
+.lista-rec button.nueva { border-color: var(--muro); color: var(--muro); }
+
+.ficha { position: fixed; z-index: 5; right: 16px; top: calc(env(safe-area-inset-top, 0px) + 16px); width: 380px; max-height: calc(100% - 32px); display: flex; flex-direction: column;
+  background: var(--panel); border: 1px solid var(--line); border-radius: 10px; backdrop-filter: blur(8px); box-shadow: 0 8px 30px rgba(0,0,0,.14); }
+.ficha header { padding: 12px 14px 10px; border-bottom: 1px solid var(--line); display: grid; grid-template-columns: 1fr auto; gap: 4px 8px; }
+.ficha .letra { font: 500 12px var(--f-mono); color: var(--ink-2); letter-spacing: .06em; }
+.ficha h2 { margin: 0; grid-column: 1; font: 700 26px/1 var(--f-display); text-wrap: balance; }
+.ficha .cerrar { grid-row: 1 / 3; grid-column: 2; align-self: start; border: 1px solid var(--line); background: none; border-radius: var(--r); width: 32px; height: 32px; font-size: 18px; line-height: 1; }
+.ficha .datos { grid-column: 1 / 3; display: flex; flex-wrap: wrap; gap: 4px 6px; margin-top: 4px; }
+.tipo-nueva { color: var(--muro); background: var(--muro-suave); }
+.tipo-casona { color: var(--casona); background: var(--global-bg); }
+.partidas { overflow-y: auto; padding: 4px 14px 12px; min-height: 0; }
+.partidas table { width: 100%; border-collapse: collapse; font-size: 12.5px; }
+.partidas td { padding: 5px 4px; border-bottom: 1px solid var(--line); vertical-align: top; }
+.partidas td.c { font: 500 11.5px var(--f-mono); color: var(--ink-2); width: 30px; }
+.partidas td.q { font: 500 12px var(--f-mono); text-align: right; white-space: nowrap; font-variant-numeric: tabular-nums; }
+.partidas tr.grupo td { font: 600 13px/1.2 var(--f-display); letter-spacing: .06em; text-transform: uppercase; color: var(--ink-2); padding-top: 12px; }
+.partidas .pie { font-size: 12px; color: var(--ink-2); margin: 10px 0 0; }
+
+.etiqueta { position: fixed; z-index: 2; transform: translate(-50%, -50%); pointer-events: auto; cursor: pointer; font: 600 12px/1.15 var(--f-display); letter-spacing: .04em; text-transform: uppercase;
+  color: #1d2427; background: rgba(255,255,255,.82); padding: 2px 6px; border-radius: 3px; white-space: nowrap; border-left: 3px solid #22282b; }
+.etiqueta.nueva { border-left-color: #c8372d; }
+.etiqueta small { display: block; font: 500 10.5px var(--f-mono); letter-spacing: 0; text-transform: none; color: #566166; }
+
+.recorrido { position: fixed; z-index: 5; right: 16px; bottom: calc(env(safe-area-inset-bottom, 0px) + 16px); display: grid; grid-template-columns: repeat(3, 52px); grid-template-rows: repeat(2, 52px); gap: 6px; }
+.recorrido button { border: 1px solid var(--line); background: var(--panel); border-radius: 8px; font-size: 20px; user-select: none; -webkit-user-select: none; touch-action: none; }
+.recorrido .arr { grid-column: 2; }
+.recorrido .salir { grid-column: 1; grid-row: 1; font: 600 12px var(--f-body); }
+.aviso { position: fixed; z-index: 6; left: 50%; top: calc(env(safe-area-inset-top, 0px) + 16px); transform: translateX(-50%); background: var(--ink); color: var(--bg); padding: 8px 14px; border-radius: 999px; font-size: 13px; max-width: calc(100% - 32px); text-align: center; }
+.cargando { position: fixed; inset: 0; display: grid; place-items: center; font: 600 18px var(--f-display); letter-spacing: .08em; text-transform: uppercase; color: var(--ink-2); z-index: 1; }
+
+@media (max-width: 760px) {
+  .cabecera h1 { font-size: 28px; }
+  .resumen { display: none; }
+  .cabecera { left: 8px; top: calc(env(safe-area-inset-top, 0px) + 8px); padding: 8px 12px; }
+  .cabecera .obra { font-size: 10px; }
+  .panel { left: 8px; right: 8px; width: auto; bottom: calc(env(safe-area-inset-bottom, 0px) + 8px); max-height: 44%; }
+  .ficha { left: 8px; right: 8px; width: auto; top: auto; bottom: calc(env(safe-area-inset-bottom, 0px) + 8px); max-height: 62%; }
+  .recorrido { right: 8px; bottom: calc(env(safe-area-inset-bottom, 0px) + 8px); grid-template-columns: repeat(3, 56px); grid-template-rows: repeat(2, 56px); }
+  .etiqueta small { display: none; }
+}
+@media (prefers-reduced-motion: reduce) { * { transition: none !important; } }
+</style>
+
+<div id="escena"><div class="cargando">Levantando la obra…</div></div>
+
+<div class="cabecera">
+  <div class="obra">Gran Avda. José Miguel Carrera 5670 · San Miguel</div>
+  <h1>Sede Preuniversitario <span>San Miguel</span></h1>
+  <div class="resumen" id="resumen"></div>
+</div>
+
+<aside class="panel" id="panel" aria-label="Controles de la obra">
+  <div class="pestanas" role="tablist">
+    <button role="tab" id="t-obra" aria-selected="true" data-p="p-obra">Obra</button>
+    <button role="tab" id="t-rx" aria-selected="false" data-p="p-rx">Rayos X</button>
+    <button role="tab" id="t-sol" aria-selected="false" data-p="p-sol">Sol</button>
+    <button role="tab" id="t-vista" aria-selected="false" data-p="p-vista">Vista</button>
+  </div>
+  <div class="cuerpo" id="p-obra">
+    <ol class="etapas" id="etapas"></ol>
+    <div class="acciones">
+      <button class="btn prim" id="construir">▶ Construir desde cero</button>
+    </div>
+    <p class="nota">Toca una sala para ver sus partidas del presupuesto.</p>
+  </div>
+  <div class="cuerpo" id="p-rx" hidden>
+    <p class="nota">Las capas muestran lo que va dentro de muros, pisos y cielos. Al prender una, el edificio se vuelve transparente.</p>
+    <div id="capas"></div>
+    <p class="nota"><b>Trazado ilustrativo.</b> El plano v5 no trae instalaciones. Los shafts de extracción forzada, la descarga y la ventilación sanitaria existentes sí salen del plano; el resto se ajusta con el proyecto de especialidades.</p>
+  </div>
+  <div class="cuerpo" id="p-sol" hidden>
+    <div class="campo">
+      <label for="hora">Hora <output id="hora-v">16:00</output></label>
+      <input type="range" id="hora" min="5" max="23" step="0.25" value="16">
+    </div>
+    <div class="campo">
+      <label for="mes">Mes</label>
+      <select id="mes"></select>
+    </div>
+    <div class="campo">
+      <label for="norte">El norte queda hacia</label>
+      <select id="norte">
+        <option value="0">Arriba del plano (Sala 01)</option>
+        <option value="90">La derecha del plano (Sala 03)</option>
+        <option value="180">Abajo del plano (Salas 04 a 07)</option>
+        <option value="270">La izquierda del plano (acceso)</option>
+      </select>
+    </div>
+    <p class="nota">Sol real de Santiago (latitud 33,5° S) en hora de Chile. <b>El plano no trae flecha de norte:</b> elige la orientación cuando la confirmes en terreno.</p>
+  </div>
+  <div class="cuerpo" id="p-vista" hidden>
+    <div class="campo">
+      <label>Mostrar</label>
+      <div class="seg" id="vista-seg">
+        <button data-v="completa" aria-pressed="true">Completa</button>
+        <button data-v="sintecho" aria-pressed="false">Sin techos</button>
+        <button data-v="corte" aria-pressed="false">Corte</button>
+      </div>
+    </div>
+    <div class="campo" id="corte-campo" hidden>
+      <label for="corte">Altura del corte <output id="corte-v">1,20 m</output></label>
+      <input type="range" id="corte" min="0.3" max="7.5" step="0.05" value="1.2">
+    </div>
+    <div class="acciones">
+      <button class="btn" id="recorrer">Recorrer por dentro</button>
+      <button class="btn" id="etiq" aria-pressed="true">Nombres</button>
+      <button class="btn" id="encuadre">Volver al encuadre</button>
+    </div>
+    <div class="campo">
+      <label for="altura">Altura de muros nuevos <output id="altura-v">2,60 m</output></label>
+      <input type="range" id="altura" min="2.3" max="3.2" step="0.05" value="2.6">
+      <p class="nota">Supuesto: el plano no trae cortes ni elevaciones. Los muros de deslinde van a 3,50 m, como dice el plano.</p>
+    </div>
+    <h3>Recintos</h3>
+    <div class="lista-rec" id="lista-rec"></div>
+  </div>
+</aside>
+
+<section class="ficha" id="ficha" hidden aria-live="polite">
+  <header>
+    <div class="letra" id="f-letra"></div>
+    <h2 id="f-nombre"></h2>
+    <button class="cerrar" id="f-cerrar" aria-label="Cerrar ficha">×</button>
+    <div class="datos" id="f-datos"></div>
+  </header>
+  <div class="partidas"><table id="f-tabla"></table><p class="pie">Cantidades del presupuesto recinto por recinto, medidas del plano v5. Los precios los pone Luciano.</p></div>
+</section>
+
+<div class="recorrido" id="pad" hidden>
+  <button class="salir" id="salir">Salir</button>
+  <button class="arr" data-k="f" aria-label="Avanzar">▲</button>
+  <button data-k="l" aria-label="Girar a la izquierda" style="grid-column:1;grid-row:2">◀</button>
+  <button data-k="b" aria-label="Retroceder" style="grid-column:2;grid-row:2">▼</button>
+  <button data-k="r" aria-label="Girar a la derecha" style="grid-column:3;grid-row:2">▶</button>
+</div>
+<div class="aviso" id="aviso" hidden></div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
+<script>
+const DATOS = /*DATOS*/;
+</script>
+<script>
+(() => {
+const $ = (id) => document.getElementById(id);
+const { muros, recintos, partidas, artefactos } = DATOS;
+
+// ------------------------------------------------------------------ partidas por etapa
+const ETAPAS = [
+  { t: 'Trabajos previos y demolición', d: 'Cierre provisorio, faenas, retiro del piso de la casona y apertura del vano del Estar.' },
+  { t: 'Fundaciones y radier', d: 'Sobrecimientos bajo cada muro nuevo, rellenos y radier en salas, baños y pasillos.' },
+  { t: 'Muros y estructura', d: 'Albañilería nueva, muros de deslinde de 3,50 m, tabiques, pilares y viga de acero del Estar.' },
+  { t: 'Instalaciones y techumbre', d: 'Agua, alcantarillado, electricidad y extracción forzada; techumbre y aleros.' },
+  { t: 'Terminaciones', d: 'Pavimentos, cielos, pintura, puertas, ventanas, artefactos sanitarios y mobiliario.' },
+];
+function etapaDe(letra, desc) {
+  if (letra === 'A' || letra === 'B') return 1;
+  if (/Fundaci|Relleno|Radier|Sobrecim/i.test(desc)) return 2;
+  if (/Instalaci|Techumbre|Alero|Aguas lluvia|Tablero|Red de/i.test(desc)) return 4;
+  if (/Muro|Tabique|Pilar|Viga|vano|Shaft/i.test(desc)) return 3;
+  return 5;
+}
+const conteoEtapa = [0, 0, 0, 0, 0, 0];
+const conteoEstado = {};
+let totalPartidas = 0;
+for (const [letra, sec] of Object.entries(partidas)) {
+  for (const it of sec.items) {
+    if (!it[0].includes('.')) continue;
+    totalPartidas++;
+    conteoEtapa[etapaDe(letra, it[1])]++;
+    conteoEstado[it[4]] = (conteoEstado[it[4]] || 0) + 1;
+  }
+}
+const ORDEN_ESTADOS = ['Plano', 'Supuesto', 'Pendiente', 'Global', 'Confirmado'];
+$('resumen').innerHTML = `<span class="chip tot">${totalPartidas} partidas</span>` +
+  ORDEN_ESTADOS.filter((e) => conteoEstado[e]).map((e) => `<span class="chip e-${e}">${conteoEstado[e]} ${e.toLowerCase()}</span>`).join('');
+
+// ------------------------------------------------------------------ escena
+const cont = $('escena');
+const renderer = new THREE.WebGLRenderer({ antialias: true, powerPreference: 'high-performance' });
+renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
+renderer.setSize(innerWidth, innerHeight);
+renderer.shadowMap.enabled = true;
+renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+renderer.outputEncoding = THREE.sRGBEncoding;
+renderer.localClippingEnabled = true;
+cont.innerHTML = '';
+cont.appendChild(renderer.domElement);
+const scene = new THREE.Scene();
+const camera = new THREE.PerspectiveCamera(42, innerWidth / innerHeight, 0.1, 600);
+const controls = new THREE.OrbitControls(camera, renderer.domElement);
+controls.enableDamping = true;
+controls.maxPolarAngle = Math.PI * 0.495;
+controls.minDistance = 4;
+controls.maxDistance = 140;
+
+// Centro del plano: todo se dibuja en metros reales del plano (x → X, y → Z).
+const todos = muros.nuevos.concat(muros.existentes);
+const minX = Math.min(...todos.map((r) => r[0])), maxX = Math.max(...todos.map((r) => r[0] + r[2]));
+const minY = Math.min(...todos.map((r) => r[1])), maxY = Math.max(...todos.map((r) => r[1] + r[3]));
+const CX = (minX + maxX) / 2, CY = (minY + maxY) / 2;
+const X = (x) => x - CX, Z = (y) => y - CY;
+const LOTE = { x0: 2.42, y0: 3.86, x1: 41.85, y1: 23.79 };
+
+// Luces
+const hemi = new THREE.HemisphereLight(0xdfe8ef, 0x6b6450, 0.55);
+scene.add(hemi);
+const sol = new THREE.DirectionalLight(0xfff3e0, 2.2);
+sol.castShadow = true;
+sol.shadow.mapSize.set(2048, 2048);
+Object.assign(sol.shadow.camera, { left: -32, right: 32, top: 32, bottom: -32, near: 1, far: 160 });
+sol.shadow.bias = -0.0004;
+sol.shadow.normalBias = 0.02;
+scene.add(sol, sol.target);
+
+// ------------------------------------------------------------------ texturas de canvas
+function lienzo(w, h, dibujar) {
+  const c = document.createElement('canvas'); c.width = w; c.height = h;
+  dibujar(c.getContext('2d'), w, h);
+  const t = new THREE.CanvasTexture(c);
+  t.wrapS = t.wrapT = THREE.RepeatWrapping; t.encoding = THREE.sRGBEncoding; t.anisotropy = 4;
+  return t;
+}
+function ruido(g, w, h, n, a) { for (let i = 0; i < n; i++) { g.fillStyle = `rgba(0,0,0,${Math.random() * a})`; g.fillRect(Math.random() * w, Math.random() * h, 2, 2); } }
+// Ladrillo fiscal: 29 × 7 cm con cantería de 1 cm. Un ciclo de textura = 0,60 × 0,32 m.
+const texLadrillo = lienzo(256, 136, (g, w, h) => {
+  g.fillStyle = '#d9d2c6'; g.fillRect(0, 0, w, h);
+  const fh = h / 4;
+  for (let f = 0; f < 4; f++) for (let k = -1; k < 3; k++) {
+    const x = k * w / 2 + (f % 2) * w / 4;
+    const tono = 150 + Math.random() * 30;
+    g.fillStyle = `rgb(${tono + 25},${tono * 0.52},${tono * 0.4})`;
+    g.fillRect(x + 2, f * fh + 2, w / 2 - 4, fh - 4);
+  }
+  ruido(g, w, h, 900, 0.12);
+});
+const texHormigon = lienzo(256, 256, (g, w, h) => { g.fillStyle = '#b8b5ae'; g.fillRect(0, 0, w, h); ruido(g, w, h, 3000, 0.08); });
+const texTierra = lienzo(256, 256, (g, w, h) => { g.fillStyle = '#9b8a6e'; g.fillRect(0, 0, w, h); ruido(g, w, h, 5000, 0.14); });
+const texPasto = lienzo(256, 256, (g, w, h) => {
+  g.fillStyle = '#7c9a5a'; g.fillRect(0, 0, w, h);
+  for (let i = 0; i < 4000; i++) { g.fillStyle = `rgba(${40 + Math.random() * 60},${90 + Math.random() * 60},30,.35)`; g.fillRect(Math.random() * w, Math.random() * h, 1, 3); }
+});
+const texZinc = lienzo(64, 64, (g, w, h) => {
+  const gr = g.createLinearGradient(0, 0, w, 0);
+  gr.addColorStop(0, '#9aa3a8'); gr.addColorStop(0.5, '#cfd5d8'); gr.addColorStop(1, '#9aa3a8');
+  g.fillStyle = gr; g.fillRect(0, 0, w, h);
+});
+const texCeramica = lienzo(128, 128, (g, w, h) => {
+  g.fillStyle = '#e9ecec'; g.fillRect(0, 0, w, h); g.strokeStyle = '#b9c0c2'; g.lineWidth = 2;
+  for (let i = 0; i <= 4; i++) { g.beginPath(); g.moveTo(i * w / 4, 0); g.lineTo(i * w / 4, h); g.stroke(); g.beginPath(); g.moveTo(0, i * h / 4); g.lineTo(w, i * h / 4); g.stroke(); }
+});
+const texVinilico = lienzo(256, 256, (g, w, h) => {
+  for (let i = 0; i < 8; i++) { const t = 150 + Math.random() * 30; g.fillStyle = `rgb(${t + 40},${t + 10},${t - 30})`; g.fillRect(0, i * h / 8, w, h / 8 - 1); }
+  ruido(g, w, h, 1500, 0.06);
+});
+const texAsfalto = lienzo(256, 256, (g, w, h) => { g.fillStyle = '#4a4f52'; g.fillRect(0, 0, w, h); ruido(g, w, h, 4000, 0.2); });
+
+const M = {
+  ladrillo: new THREE.MeshStandardMaterial({ map: texLadrillo, roughness: 0.9 }),
+  pintado: new THREE.MeshStandardMaterial({ color: 0xf1ede4, roughness: 0.85 }),
+  casona: new THREE.MeshStandardMaterial({ color: 0xd8cfbf, roughness: 0.95 }),
+  casonaPintada: new THREE.MeshStandardMaterial({ color: 0xf3ead8, roughness: 0.85 }),
+  hormigon: new THREE.MeshStandardMaterial({ map: texHormigon, roughness: 0.95 }),
+  tierra: new THREE.MeshStandardMaterial({ map: texTierra, roughness: 1 }),
+  pasto: new THREE.MeshStandardMaterial({ map: texPasto, roughness: 1 }),
+  zinc: new THREE.MeshStandardMaterial({ map: texZinc, roughness: 0.45, metalness: 0.5 }),
+  ceramica: new THREE.MeshStandardMaterial({ map: texCeramica, roughness: 0.4 }),
+  vinilico: new THREE.MeshStandardMaterial({ map: texVinilico, roughness: 0.7 }),
+  flotante: new THREE.MeshStandardMaterial({ map: texVinilico, color: 0xcaa27a, roughness: 0.6 }),
+  asfalto: new THREE.MeshStandardMaterial({ map: texAsfalto, roughness: 1 }),
+  fuera: new THREE.MeshStandardMaterial({ color: 0x8e9187, roughness: 1 }),
+  vereda: new THREE.MeshStandardMaterial({ map: texHormigon, color: 0xdedbd2, roughness: 1 }),
+  vidrio: new THREE.MeshStandardMaterial({ color: 0x9cc4d4, roughness: 0.05, metalness: 0.2, transparent: true, opacity: 0.38, emissive: 0x000000 }),
+  marco: new THREE.MeshStandardMaterial({ color: 0x3a3f42, roughness: 0.5, metalness: 0.4 }),
+  puerta: new THREE.MeshStandardMaterial({ color: 0x8a6440, roughness: 0.7 }),
+  acero: new THREE.MeshStandardMaterial({ color: 0x5b6266, roughness: 0.4, metalness: 0.7 }),
+  blanco: new THREE.MeshStandardMaterial({ color: 0xf8f8f6, roughness: 0.3 }),
+  mueble: new THREE.MeshStandardMaterial({ color: 0xc9b08a, roughness: 0.7 }),
+  silla: new THREE.MeshStandardMaterial({ color: 0x2f4f6a, roughness: 0.6 }),
+  pizarra: new THREE.MeshStandardMaterial({ color: 0xfafafa, roughness: 0.2 }),
+  luz: new THREE.MeshStandardMaterial({ color: 0xffffff, emissive: 0x000000, roughness: 0.4 }),
+  reja: new THREE.MeshStandardMaterial({ color: 0x2e3336, roughness: 0.5, metalness: 0.6 }),
+  malla: new THREE.MeshStandardMaterial({ color: 0x2e7d4f, roughness: 0.9, transparent: true, opacity: 0.55, side: THREE.DoubleSide }),
+  escombro: new THREE.MeshStandardMaterial({ color: 0x8c8277, roughness: 1 }),
+};
+// Materiales del edificio que se transparentan con los rayos X
+const EDIFICIO = ['tierra', 'pasto', 'asfalto', 'vereda', 'malla', 'escombro', 'reja', 'ladrillo', 'pintado', 'casona', 'casonaPintada', 'hormigon', 'zinc', 'ceramica', 'vinilico', 'flotante', 'vidrio', 'marco', 'puerta', 'mueble', 'silla', 'pizarra', 'blanco', 'acero', 'luz'];
+for (const k of EDIFICIO) { M[k].userData.op = M[k].opacity; M[k].userData.tr = M[k].transparent; }
+
+// Caja con UV en metros, para que el ladrillo no se estire
+function caja(w, h, d, mat, escU = 0.6, escV = 0.32) {
+  const g = new THREE.BoxGeometry(w, h, d);
+  const uv = g.attributes.uv;
+  const dims = [[d, h], [d, h], [w, d], [w, d], [w, h], [w, h]];
+  for (let f = 0; f < 6; f++) for (let v = 0; v < 4; v++) {
+    const i = f * 4 + v;
+    uv.setXY(i, uv.getX(i) * dims[f][0] / escU, uv.getY(i) * dims[f][1] / escV);
+  }
+  const m = new THREE.Mesh(g, mat);
+  m.castShadow = true; m.receiveShadow = true;
+  return m;
+}
+// Caja en coordenadas del plano: rect [x, y, ancho, fondo], de z0 a z1
+function cajaPlano(r, z0, z1, mat, escU, escV) {
+  const m = caja(r[2], z1 - z0, r[3], mat, escU, escV);
+  m.position.set(X(r[0] + r[2] / 2), (z0 + z1) / 2, Z(r[1] + r[3] / 2));
+  return m;
+}
+function plano(r, z, mat, rep = 1) {
+  const g = new THREE.PlaneGeometry(r[2], r[3]);
+  const uv = g.attributes.uv;
+  for (let i = 0; i < uv.count; i++) uv.setXY(i, uv.getX(i) * r[2] / rep, uv.getY(i) * r[3] / rep);
+  const m = new THREE.Mesh(g, mat);
+  m.rotation.x = -Math.PI / 2;
+  m.position.set(X(r[0] + r[2] / 2), z, Z(r[1] + r[3] / 2));
+  m.receiveShadow = true;
+  return m;
+}
+
+// ------------------------------------------------------------------ construcción del modelo
+let H_NUEVO = 2.6;
+const H_DESLINDE = 3.5, H_CASONA = 3.1, H_CASONA2 = 2.8;
+const esDeslinde = (r) => r[1] + r[3] < 4.4 || r[0] > 41.4;
+const altoMuro = (r) => (esDeslinde(r) ? H_DESLINDE : H_NUEVO);
+const casonaRects = muros.existentes.filter((r) => r[0] >= 10);
+const CAS = {
+  x0: Math.min(...casonaRects.map((r) => r[0])), x1: Math.max(...casonaRects.map((r) => r[0] + r[2])),
+  y0: Math.min(...casonaRects.map((r) => r[1])), y1: Math.max(...casonaRects.map((r) => r[1] + r[3])),
+};
+
+// Cada objeto lleva la etapa en que aparece (desde) y, si corresponde, la etapa en que se va (hasta).
+const modelo = new THREE.Group(); scene.add(modelo);
+const piezas = [];
+function poner(obj, desde, hasta = 99, extra = {}) {
+  obj.userData.desde = desde; obj.userData.hasta = hasta; Object.assign(obj.userData, extra);
+  modelo.add(obj); piezas.push(obj);
+  return obj;
+}
+const capas = { agua: [], alcantarillado: [], electricidad: [], extraccion: [] };
+const pick = [];
+const luminarias = [];
+let lucesNoche = [];
+
+function construirModelo() {
+  for (const p of piezas) { modelo.remove(p); p.traverse((o) => { if (o.geometry) o.geometry.dispose(); }); }
+  piezas.length = 0; pick.length = 0; luminarias.length = 0;
+  for (const k in capas) capas[k].length = 0;
+  for (const l of lucesNoche) scene.remove(l);
+  lucesNoche = [];
+
+  // Suelo: tierra durante la obra, pasto y pavimentos al terminar
+  const lote = [LOTE.x0, LOTE.y0, LOTE.x1 - LOTE.x0, LOTE.y1 - LOTE.y0];
+  poner(plano(lote, 0, M.tierra, 4), 1, 4);
+  poner(plano(lote, 0, M.pasto, 3), 5);
+  // Calles en el ochavo de la Sala 07 (esquina): la L.O.E. del plano corre por abajo y por la izquierda
+  const calle = new THREE.Group();
+  calle.add(plano([LOTE.x0 - 14, LOTE.y0 - 30, 9.5, 80], -0.02, M.asfalto, 6));
+  calle.add(plano([LOTE.x0 - 4.5, LOTE.y0 - 30, 4.5, 80], 0.06, M.vereda, 2));
+  calle.add(plano([LOTE.x0 - 14, LOTE.y1, 90, 4.5], 0.061, M.vereda, 2));
+  calle.add(plano([LOTE.x0 - 14, LOTE.y1 + 4.5, 90, 9.5], -0.019, M.asfalto, 6));
+  const fuera = plano([LOTE.x0 - 80, LOTE.y0 - 80, 200, 200], -0.05, M.fuera, 10);
+  calle.add(fuera);
+  poner(calle, 1);
+
+  // Etapa 1: cierre perimetral provisorio (malla), faenas y escombros del piso de la casona
+  const cierre = new THREE.Group();
+  const per = [[LOTE.x0, LOTE.y0, LOTE.x1, LOTE.y0], [LOTE.x1, LOTE.y0, LOTE.x1, LOTE.y1], [LOTE.x1, LOTE.y1, LOTE.x0, LOTE.y1], [LOTE.x0, LOTE.y1, LOTE.x0, LOTE.y0]];
+  for (const [a, b, c, d] of per) {
+    const L = Math.hypot(c - a, d - b);
+    const m = new THREE.Mesh(new THREE.PlaneGeometry(L, 2), M.malla);
+    m.position.set(X((a + c) / 2), 1, Z((b + d) / 2));
+    m.rotation.y = -Math.atan2(d - b, c - a);
+    cierre.add(m);
+  }
+  poner(cierre, 1, 4);
+  const faena = cajaPlano([3.2, 5.0, 2.4, 6], 0, 2.5, M.blanco); faena.material = new THREE.MeshStandardMaterial({ color: 0xe0e4e6, roughness: 0.6 });
+  poner(faena, 1, 4);
+  for (let i = 0; i < 14; i++) {
+    const s = 0.4 + Math.random() * 0.7;
+    const m = new THREE.Mesh(new THREE.DodecahedronGeometry(s, 0), M.escombro);
+    m.position.set(X(30 + Math.random() * 8), s * 0.4, Z(17 + Math.random() * 3.5));
+    m.castShadow = true;
+    poner(m, 1, 1);
+  }
+
+  // Casona existente: piso 1 desde el inicio, con su piso retirado en la etapa 1
+  for (const r of muros.existentes) {
+    const alto = r[0] < 10 ? H_CASONA - 0.4 : H_CASONA;
+    poner(cajaPlano(r, 0, alto, M.casona, 1, 1), 1, 4);
+    poner(cajaPlano(r, 0, alto, M.casonaPintada, 1, 1), 5);
+  }
+  for (const v of muros.vanos_existentes) { // dintel sobre cada puerta existente
+    poner(cajaPlano(v, 2.1, H_CASONA, M.casona, 1, 1), 1, 4);
+    poner(cajaPlano(v, 2.1, H_CASONA, M.casonaPintada, 1, 1), 5);
+  }
+  // Losa entre pisos y piso 2 de la casona (sin plano: volumen referencial con sus ventanas)
+  const cas = [CAS.x0, CAS.y0, CAS.x1 - CAS.x0, CAS.y1 - CAS.y0];
+  const p2 = new THREE.Group();
+  p2.add(cajaPlano(cas, H_CASONA, H_CASONA + 0.2, M.hormigon, 2, 2));
+  const e = 0.25;
+  const lados = [[cas[0], cas[1], cas[2], e], [cas[0], cas[1] + cas[3] - e, cas[2], e], [cas[0], cas[1], e, cas[3]], [cas[0] + cas[2] - e, cas[1], e, cas[3]]];
+  for (const r of lados) p2.add(cajaPlano(r, H_CASONA + 0.2, H_CASONA + 0.2 + H_CASONA2, M.casona, 1, 1));
+  // ventanas del piso 2, repartidas en las fachadas largas
+  for (const yy of [cas[1] - 0.02, cas[1] + cas[3] - e + 0.02]) {
+    for (let x = cas[0] + 1.4; x < cas[0] + cas[2] - 1.4; x += 2.6) {
+      const w = cajaPlano([x, yy, 1.2, e], H_CASONA + 1.1, H_CASONA + 2.5, M.vidrio, 1, 1);
+      w.scale.z = 1.04; w.castShadow = false; p2.add(w);
+    }
+  }
+  poner(p2, 1, 99, { piso2: true });
+  // Techumbre de la casona: cuatro aguas sobre el piso 2
+  const techoCas = techoCuatroAguas(cas, H_CASONA + 0.2 + H_CASONA2, 1.6, 0.5);
+  poner(techoCas, 1, 99, { techo: true, piso2: true });
+
+  // Etapa 2: sobrecimientos y radier
+  for (const r of muros.nuevos) poner(cajaPlano(r, -0.05, 0.25, M.hormigon, 1, 1), 2);
+  for (const [k, rc] of Object.entries(recintos)) {
+    if (rc.tipo === 'exterior') continue;
+    poner(plano(rc.rect, 0.12, M.hormigon, 2), 2, 4);
+  }
+  // pasillos y patio
+  const pasillos = [[14.3, 20.95, 22.6, 1.45], [27.04, 10.0, 8.86, 6.3], [24.1, 4.2, 2.94, 12.1], [5.6, 12.9, 4.7, 3.2]];
+  for (const r of pasillos) { poner(plano(r, 0.1, M.hormigon, 2), 2, 4); poner(plano(r, 0.1, M.vereda, 1.5), 5); }
+
+  // Etapa 3: muros nuevos de albañilería (ladrillo a la vista hasta las terminaciones)
+  for (const r of muros.nuevos) {
+    const h = altoMuro(r);
+    poner(cajaPlano(r, 0.25, h, M.ladrillo), 3, 4, { sube: true });
+    poner(cajaPlano(r, 0.25, h, M.pintado, 1, 1), 5);
+  }
+  // Vanos: antepecho y dintel en las ventanas, dintel en las puertas
+  for (const v of muros.vanos_nuevos) {
+    const h = altoMuro(v);
+    if (v[4] === 'ventana') {
+      poner(cajaPlano(v, 0.25, 0.9, M.ladrillo), 3, 4, { sube: true });
+      poner(cajaPlano(v, 0.25, 0.9, M.pintado, 1, 1), 5);
+    }
+    poner(cajaPlano(v, 2.1, h, M.ladrillo), 3, 4, { sube: true });
+    poner(cajaPlano(v, 2.1, h, M.pintado, 1, 1), 5);
+  }
+  // Pilares de acero 100×100×3 y viga 200×50×3 en el vano nuevo del Estar de Alumnos
+  const rEstar = recintos.L.rect;
+  const xv = rEstar[0] + rEstar[2] + 0.05, yv = rEstar[1] + 1.25;
+  for (const dy of [0, 1.56]) poner(cajaPlano([xv - 0.05, yv + dy - 0.05, 0.1, 0.1], 0, 2.4, M.acero, 1, 1), 3);
+  poner(cajaPlano([xv - 0.05, yv - 0.05, 0.1, 1.66], 2.4, 2.6, M.acero, 1, 1), 3);
+
+  // Etapa 4: techumbre de zinc sobre la obra nueva y aleros de pasillos
+  for (const [k, rc] of Object.entries(recintos)) {
+    if (rc.tipo !== 'nueva') continue;
+    const r = rc.rect, m = 0.3;
+    const h = esDeslinde([r[0], r[1] - 0.2, r[2], 0.1]) ? H_DESLINDE : H_NUEVO;
+    poner(cajaPlano([r[0] - m, r[1] - m, r[2] + 2 * m, r[3] + 2 * m], H_NUEVO, H_NUEVO + 0.12, M.zinc, 0.25, 4), 4, 99, { techo: true });
+    if (h > H_NUEVO) { /* el deslinde sobresale: ya está en los muros */ }
+  }
+  const aleros = [[14.3, 20.95, 22.6, 1.55], [27.04, 9.9, 8.86, 1.95], [27.04, 14.4, 8.86, 1.95], [24.1, 4.2, 2.94, 12.1], [6.06, 13.2, 1.34, 2.3]];
+  for (const r of aleros) poner(cajaPlano(r, H_NUEVO - 0.05, H_NUEVO + 0.03, M.zinc, 0.25, 4), 4, 99, { techo: true });
+  // pilares del alero del frente y del patio
+  for (let x = 15; x < 36.9; x += 3.3) poner(cajaPlano([x, 22.35, 0.1, 0.1], 0, H_NUEVO, M.acero, 1, 1), 4);
+  for (const r of muros.nuevos) if (r[2] < 0.3 && r[3] < 0.3 && r[1] > 10 && r[1] < 15.5 && r[0] > 26) poner(cajaPlano(r, 0.25, H_NUEVO, M.acero, 1, 1), 3);
+  // barandas h = 0,95 m del patio y del pasillo del frente
+  const barandas = [[27.0, 11.78, 8.6, 0.04], [27.0, 14.55, 8.6, 0.04], [27.0, 11.78, 0.04, 2.8], [14.3, 22.35, 22.6, 0.04]];
+  for (const r of barandas) poner(cajaPlano(r, 0.9, 0.95, M.reja, 1, 1), 5);
+  for (const r of barandas) {
+    const largo = Math.max(r[2], r[3]);
+    for (let s = 0; s <= largo; s += 0.12) {
+      const x = r[2] > r[3] ? r[0] + s : r[0], y = r[2] > r[3] ? r[1] : r[1] + s;
+      poner(cajaPlano([x, y, 0.02, 0.02], 0.1, 0.9, M.reja, 1, 1), 5);
+    }
+  }
+
+  // Etapa 5: pavimentos, cielos, ventanas, puertas, artefactos y muebles
+  for (const [k, rc] of Object.entries(recintos)) {
+    if (rc.tipo === 'exterior') continue;
+    const esBano = /Baño/.test(rc.nombre);
+    const mat = esBano ? M.ceramica : rc.tipo === 'casona' ? M.flotante : M.vinilico;
+    poner(plano(rc.rect, 0.14, mat, esBano ? 1.2 : 2.4), 5);
+    // luminarias en el cielo
+    const r = rc.rect, z = (rc.tipo === 'casona' ? H_CASONA : H_NUEVO) - 0.03;
+    const nx = Math.max(1, Math.round(r[2] / 3)), ny = Math.max(1, Math.round(r[3] / 3));
+    for (let i = 0; i < nx; i++) for (let j = 0; j < ny; j++) {
+      const px = r[0] + (i + 0.5) * r[2] / nx, py = r[1] + (j + 0.5) * r[3] / ny;
+      const l = cajaPlano([px - 0.3, py - 0.3, 0.6, 0.6], z - 0.03, z, M.luz, 1, 1); l.castShadow = false;
+      poner(l, 5); luminarias.push([px, py, z]);
+    }
+  }
+  for (const v of muros.vanos_nuevos) {
+    const h = altoMuro(v);
+    if (v[4] === 'ventana') {
+      const vid = cajaPlano(v, 0.9, 2.1, M.vidrio, 1, 1); vid.scale.set(v[2] > v[3] ? 1 : 0.3, 1, v[2] > v[3] ? 0.3 : 1); vid.castShadow = false;
+      poner(vid, 5);
+      const horiz = v[2] > v[3];
+      for (const t of [0, 0.5, 1]) {
+        const x = horiz ? v[0] + t * (v[2] - 0.05) : v[0], y = horiz ? v[1] : v[1] + t * (v[3] - 0.05);
+        poner(cajaPlano([x, y, horiz ? 0.05 : v[2], horiz ? v[3] : 0.05], 0.9, 2.1, M.marco, 1, 1), 5);
+      }
+    } else {
+      const horiz = v[2] > v[3];
+      const hoja = cajaPlano(horiz ? [v[0], v[1] + v[3] / 2 - 0.02, v[2], 0.04] : [v[0] + v[2] / 2 - 0.02, v[1], 0.04, v[3]], 0.15, 2.08, M.puerta, 1, 1);
+      poner(hoja, 5);
+    }
+  }
+  muebles();
+  instalaciones();
+  // Luces de noche: unas pocas, sin sombra, en las salas
+  for (const [k, rc] of Object.entries(recintos)) {
+    if (!/Sala|Estar|Recep/.test(rc.nombre)) continue;
+    const r = rc.rect;
+    const l = new THREE.PointLight(0xffe2b0, 0, 9, 1.6);
+    l.position.set(X(r[0] + r[2] / 2), H_NUEVO - 0.3, Z(r[1] + r[3] / 2));
+    l.userData.desde = 5; scene.add(l); lucesNoche.push(l);
+  }
+  // Recintos tocables
+  for (const [k, rc] of Object.entries(recintos)) {
+    const m = plano(rc.rect, 0.2, new THREE.MeshBasicMaterial({ color: 0xc8372d, transparent: true, opacity: 0.28, depthWrite: false }));
+    m.material.visible = false; m.userData.letra = k; m.renderOrder = 2; m.receiveShadow = false;
+    poner(m, 0); pick.push(m);
+  }
+}
+
+function techoCuatroAguas(r, z, alto, alero) {
+  const x0 = X(r[0] - alero), x1 = X(r[0] + r[2] + alero), z0 = Z(r[1] - alero), z1 = Z(r[1] + r[3] + alero);
+  const largo = (x1 - x0) > (z1 - z0);
+  const c = largo ? (z1 - z0) / 2 : (x1 - x0) / 2;
+  const cm = largo ? [x0 + c, (z0 + z1) / 2, x1 - c, (z0 + z1) / 2] : [(x0 + x1) / 2, z0 + c, (x0 + x1) / 2, z1 - c];
+  const v = [x0, z, z0, x1, z, z0, x1, z, z1, x0, z, z1, cm[0], z + alto, cm[1], cm[2], z + alto, cm[3]];
+  const idx = largo ? [0, 4, 1, 1, 4, 5, 1, 5, 2, 2, 5, 3, 3, 5, 4, 3, 4, 0] : [0, 4, 1, 1, 4, 2, 2, 4, 5, 2, 5, 3, 3, 5, 0, 0, 5, 4];
+  const g = new THREE.BufferGeometry();
+  g.setAttribute('position', new THREE.Float32BufferAttribute(v, 3));
+  g.setIndex(idx); g.computeVertexNormals();
+  const mat = new THREE.MeshStandardMaterial({ color: 0x8a3a2c, roughness: 0.8, side: THREE.DoubleSide });
+  M.tejas = mat; mat.userData.op = 1; mat.userData.tr = false;
+  const m = new THREE.Mesh(g, mat); m.castShadow = true; m.receiveShadow = true;
+  return m;
+}
+
+function muebles() {
+  const salas = Object.values(recintos).filter((rc) => /Sala/.test(rc.nombre));
+  const mesas = [], sillas = [];
+  for (const rc of salas) {
+    const [x, y, w, d] = rc.rect;
+    const largoX = w >= d;
+    // pizarra en el muro corto de la izquierda (o de arriba) y mesas mirando hacia ella
+    const L = largoX ? w : d, A = largoX ? d : w;
+    if (largoX) poner(cajaPlano([x + 0.08, y + d / 2 - 1.2, 0.04, 2.4], 0.9, 2.1, M.pizarra, 1, 1), 5);
+    else poner(cajaPlano([x + w / 2 - 1.2, y + 0.08, 2.4, 0.04], 0.9, 2.1, M.pizarra, 1, 1), 5);
+    for (let a = 2.0; a < L - 0.7; a += 1.15) for (let b = 0.75; b < A - 0.5; b += 0.9) {
+      const px = largoX ? x + a : x + b, py = largoX ? y + b : y + a;
+      mesas.push([px, py, largoX]); sillas.push([px + (largoX ? 0.42 : 0), py + (largoX ? 0 : 0.42)]);
+    }
+  }
+  const gm = new THREE.BoxGeometry(0.45, 0.04, 0.6), gs = new THREE.BoxGeometry(0.4, 0.45, 0.4);
+  const im = new THREE.InstancedMesh(gm, M.mueble, mesas.length), is = new THREE.InstancedMesh(gs, M.silla, sillas.length);
+  const o = new THREE.Object3D();
+  mesas.forEach(([px, py, lx], i) => { o.position.set(X(px), 0.75, Z(py)); o.rotation.y = lx ? 0 : Math.PI / 2; o.updateMatrix(); im.setMatrixAt(i, o.matrix); });
+  sillas.forEach(([px, py], i) => { o.position.set(X(px), 0.37, Z(py)); o.rotation.y = 0; o.updateMatrix(); is.setMatrixAt(i, o.matrix); });
+  im.castShadow = is.castShadow = true;
+  poner(im, 5); poner(is, 5);
+  // Artefactos sanitarios contados en el plano
+  for (const [k, a] of Object.entries(artefactos)) {
+    const [x, y, w, d] = recintos[k].rect;
+    const largoX = w >= d;
+    const L = largoX ? w : d;
+    const n1 = a.wc + a.uri, n2 = a.lav;
+    for (let i = 0; i < n1; i++) {
+      const t = (i + 0.5) / n1 * L;
+      const px = largoX ? x + t : x + 0.35, py = largoX ? y + 0.35 : y + t;
+      const esUri = i >= a.wc;
+      const m = esUri ? cajaPlano([px - 0.18, py - 0.12, 0.36, 0.24], 0.6, 1.2, M.blanco, 1, 1) : cajaPlano([px - 0.2, py - 0.28, 0.4, 0.56], 0.14, 0.55, M.blanco, 1, 1);
+      poner(m, 5);
+    }
+    for (let i = 0; i < n2; i++) {
+      const t = (i + 0.5) / n2 * L;
+      const px = largoX ? x + t : x + w - 0.3, py = largoX ? y + d - 0.3 : y + t;
+      poner(cajaPlano([px - 0.25, py - 0.2, 0.5, 0.4], 0.75, 0.88, M.blanco, 1, 1), 5);
+    }
+  }
+  // Estar de Alumnos: mesas redondas; Recepción: mesón; Oficina: escritorio
+  const re = recintos.L.rect;
+  for (let i = 0; i < 3; i++) for (let j = 0; j < 2; j++) {
+    const m = new THREE.Mesh(new THREE.CylinderGeometry(0.45, 0.45, 0.05, 20), M.mueble);
+    m.position.set(X(re[0] + 1.1 + i * 1.8), 0.74, Z(re[1] + 1.1 + j * 1.8)); m.castShadow = true; poner(m, 5);
+  }
+  const rr = recintos.J.rect; poner(cajaPlano([rr[0] + 0.6, rr[1] + rr[3] - 1.2, 1.8, 0.6], 0.14, 1.05, M.mueble, 1, 1), 5);
+  const ro = recintos.M.rect; poner(cajaPlano([ro[0] + 0.4, ro[1] + 0.4, 1.4, 0.7], 0.72, 0.76, M.mueble, 1, 1), 5);
+}
+
+// ------------------------------------------------------------------ instalaciones (rayos X)
+const COLOR_CAPA = { agua: 0x2f8fe0, alcantarillado: 0x7a4419, electricidad: 0xf2b705, extraccion: 0x9aa4aa };
+function tubo(capa, pts, radio) {
+  radio *= 1.8;
+  const mat = new THREE.MeshStandardMaterial({ color: COLOR_CAPA[capa], emissive: COLOR_CAPA[capa], emissiveIntensity: 0.22, roughness: 0.4 });
+  const g = new THREE.Group();
+  for (let i = 0; i < pts.length - 1; i++) {
+    const a = new THREE.Vector3(X(pts[i][0]), pts[i][2], Z(pts[i][1])), b = new THREE.Vector3(X(pts[i + 1][0]), pts[i + 1][2], Z(pts[i + 1][1]));
+    const L = a.distanceTo(b); if (L < 0.001) continue;
+    const c = new THREE.Mesh(new THREE.CylinderGeometry(radio, radio, L, 10), mat);
+    c.position.copy(a).add(b).multiplyScalar(0.5);
+    c.quaternion.setFromUnitVectors(new THREE.Vector3(0, 1, 0), b.clone().sub(a).normalize());
+    g.add(c);
+    const codo = new THREE.Mesh(new THREE.SphereGeometry(radio * 1.15, 10, 8), mat); codo.position.copy(b); g.add(codo);
+  }
+  g.userData.capa = capa; g.userData.desde = 4; g.userData.instalacion = true;
+  modelo.add(g); piezas.push(g); capas[capa].push(g);
+  return g;
+}
+function punto(capa, x, y, z, s) {
+  const mat = new THREE.MeshStandardMaterial({ color: COLOR_CAPA[capa], emissive: COLOR_CAPA[capa], emissiveIntensity: 0.5 });
+  const m = new THREE.Mesh(new THREE.BoxGeometry(s * 1.3, s * 1.3, s * 1.3), mat);
+  m.position.set(X(x), z, Z(y)); m.userData.capa = capa; m.userData.desde = 4; m.userData.instalacion = true;
+  modelo.add(m); piezas.push(m); capas[capa].push(m);
+}
+function centro(k) { const r = recintos[k].rect; return [r[0] + r[2] / 2, r[1] + r[3] / 2]; }
+function instalaciones() {
+  // Agua potable: empalme desde la calle (izquierda), matriz bajo el piso hasta los baños
+  const za = -0.35;
+  tubo('agua', [[0.6, 15.5, za], [15.0, 15.5, za], [24.6, 15.5, za], [24.6, 6.6, za], [20.9, 6.6, za]], 0.04);
+  punto('agua', 1.6, 15.5, za + 0.2, 0.35); // medidor
+  for (const k of Object.keys(artefactos)) {
+    const [x, y, w, d] = recintos[k].rect;
+    const cx = x + w / 2, cy = y + d / 2;
+    const yy = k === 'Q' || k === 'R' ? 6.6 : 15.5;
+    tubo('agua', [[cx, yy, za], [cx, cy, za], [cx, cy, 0.9]], 0.025);
+  }
+  // Alcantarillado: de cada baño a la descarga existente y de ahí a la calle
+  const zs = -0.6, D = [20.9, 16.9];
+  tubo('alcantarillado', [[26.2, 6.2, zs], [26.2, 16.6, zs], [D[0], 16.6, zs], [D[0], D[1], zs], [D[0], 25.5, zs - 0.2]], 0.06);
+  tubo('alcantarillado', [[15.3, 16.6, zs], [D[0], 16.6, zs]], 0.06);
+  tubo('alcantarillado', [[21.0, 5.2, zs], [26.2, 5.2, zs], [26.2, 6.2, zs]], 0.055);
+  for (const k of ['N', 'O', 'P']) { const c = centro(k); tubo('alcantarillado', [[c[0], c[1], 0.1], [c[0], c[1], zs], [c[0], 16.6, zs]], 0.05); }
+  for (const p of [[26.2, 16.6], [D[0], 16.6], [D[0], 23.5]]) punto('alcantarillado', p[0], p[1], zs + 0.25, 0.6); // cámaras
+  tubo('alcantarillado', [[18.16, 16.5, 0], [18.16, 16.5, H_CASONA + H_CASONA2 + 1.2]], 0.05); // ventilación sanitaria existente
+  // Electricidad: tablero en la Oficina 01, circuitos por el cielo a cada recinto
+  const tab = [recintos.M.rect[0] + 0.15, recintos.M.rect[1] + 0.9];
+  punto('electricidad', tab[0], tab[1], 1.4, 0.45);
+  tubo('electricidad', [[tab[0], tab[1], 1.4], [tab[0], tab[1], H_NUEVO - 0.08]], 0.025);
+  for (const [k, rc] of Object.entries(recintos)) {
+    if (rc.tipo === 'exterior') continue;
+    const c = centro(k), z = H_NUEVO - 0.08;
+    tubo('electricidad', [[tab[0], tab[1], z], [c[0], tab[1], z], [c[0], c[1], z]], 0.014);
+  }
+  tubo('electricidad', [[tab[0], tab[1], 0.2], [tab[0], tab[1], -0.3], [0.6, tab[1], -0.3]], 0.03); // empalme
+  for (const l of luminarias) punto('electricidad', l[0], l[1], l[2] - 0.08, 0.14);
+  // Extracción forzada: los tres shafts del plano, en los baños de la casona
+  const shafts = [[15.0, 16.55], [17.55, 16.55], [19.55, 16.55]];
+  const banos = ['O', 'N', 'P'];
+  shafts.forEach((s, i) => {
+    const c = centro(banos[i]);
+    tubo('extraccion', [[c[0], c[1], H_CASONA - 0.2], [s[0], s[1] - 0.4, H_CASONA - 0.2], [s[0], s[1], H_CASONA - 0.2], [s[0], s[1], H_CASONA + H_CASONA2 + 1.0]], 0.09);
+  });
+}
+
+// ------------------------------------------------------------------ etapas y animación
+let etapa = 5;
+const animando = new Set();
+function visibleEn(o, n) {
+  if (o.userData.instalacion) return capaVisible(o.userData.capa, n);
+  if ((o.userData.techo || o.userData.piso2) && vista === 'sintecho') return false;
+  return n >= o.userData.desde && n <= o.userData.hasta;
+}
+function capaVisible(capa, n) { return rx[capa] || (n === 4 && !Object.values(rx).some(Boolean)); }
+function ponerEtapa(n, animar) {
+  const antes = etapa; etapa = n;
+  for (const o of piezas) {
+    const v = visibleEn(o, n);
+    if (v && !o.visible && animar && n > antes && o.userData.desde === n) {
+      o.userData.t0 = performance.now() + Math.random() * 500; o.scale.y = 0.001; animando.add(o);
+    }
+    if (!v) o.scale.y = 1;
+    o.visible = v;
+  }
+  for (const l of lucesNoche) l.visible = n >= 5;
+  pintarEtapas();
+}
+function animar(ahora) {
+  for (const o of animando) {
+    const t = Math.min(1, Math.max(0, (ahora - o.userData.t0) / 900));
+    const e = 1 - Math.pow(1 - t, 3);
+    o.scale.y = Math.max(0.001, e);
+    if (o.userData.sube) { const h = o.geometry.parameters.height; const base = o.position.y; o.userData.base ??= base; o.position.y = o.userData.base - h / 2 * (1 - e); }
+    if (t >= 1) { animando.delete(o); o.scale.y = 1; if (o.userData.base != null) { o.position.y = o.userData.base; delete o.userData.base; } }
+  }
+}
+function pintarEtapas() {
+  $('etapas').innerHTML = ETAPAS.map((s, i) => {
+    const n = i + 1, cls = n === etapa ? 'actual' : n < etapa ? 'hecha' : '';
+    return `<li><button class="etapa ${cls}" data-n="${n}" aria-current="${n === etapa}"><span class="n">${n}</span><span class="t">${s.t}</span><span class="p">${conteoEtapa[n]} partidas</span><span class="d">${s.d}</span></button></li>`;
+  }).join('');
+}
+$('etapas').addEventListener('click', (e) => { const b = e.target.closest('.etapa'); if (b) { detenerObra(); ponerEtapa(+b.dataset.n, true); } });
+let reloj = null;
+function detenerObra() { clearTimeout(reloj); reloj = null; $('construir').textContent = '▶ Construir desde cero'; }
+$('construir').addEventListener('click', () => {
+  if (reloj) { detenerObra(); return; }
+  $('construir').textContent = '■ Detener';
+  ponerEtapa(1, false);
+  const paso = () => { if (etapa < 5) { ponerEtapa(etapa + 1, true); reloj = setTimeout(paso, 2600); } else detenerObra(); };
+  reloj = setTimeout(paso, 1800);
+});
+
+// ------------------------------------------------------------------ rayos X
+const rx = { agua: false, alcantarillado: false, electricidad: false, extraccion: false };
+const CAPAS_UI = [
+  ['agua', 'Agua potable', 'Empalme desde la calle, matriz bajo el piso y subida a cada artefacto.'],
+  ['alcantarillado', 'Alcantarillado', 'De cada baño a la descarga existente; cámaras de inspección y ventilación.'],
+  ['electricidad', 'Electricidad', 'Tablero en la Oficina 01 y circuitos por el cielo a cada luminaria.'],
+  ['extraccion', 'Extracción forzada', 'Los tres shafts del plano, en los baños de la casona.'],
+];
+$('capas').innerHTML = CAPAS_UI.map(([k, t, d]) => `<label class="capa"><input type="checkbox" id="rx-${k}" data-k="${k}"><span><span class="sw" style="background:#${COLOR_CAPA[k].toString(16).padStart(6, '0')}"></span>${t}</span><small>${d}</small></label>`).join('');
+$('capas').addEventListener('change', (e) => { const k = e.target.dataset.k; if (!k) return; rx[k] = e.target.checked; aplicarRx(); });
+function aplicarRx() {
+  const algo = Object.values(rx).some(Boolean);
+  for (const k of EDIFICIO.concat(['tejas'])) {
+    const m = M[k]; if (!m) continue;
+    const suelo = ['tierra', 'pasto', 'asfalto', 'vereda'].includes(k);
+    m.transparent = algo || m.userData.tr; m.opacity = algo ? Math.min(suelo ? 0.3 : 0.1, m.userData.op) : m.userData.op;
+    m.depthWrite = !algo; m.needsUpdate = true;
+  }
+  M.fuera.transparent = algo; M.fuera.opacity = algo ? 0.3 : 1; M.fuera.depthWrite = !algo; M.fuera.needsUpdate = true;
+  sol.castShadow = !algo;
+  ponerEtapa(etapa, false);
+}
+
+// ------------------------------------------------------------------ sol
+const MESES = ['enero', 'febrero', 'marzo', 'abril', 'mayo', 'junio', 'julio', 'agosto', 'septiembre', 'octubre', 'noviembre', 'diciembre'];
+$('mes').innerHTML = MESES.map((m, i) => `<option value="${i}">${m[0].toUpperCase() + m.slice(1)}</option>`).join('');
+$('mes').value = String(new Date().getMonth());
+const LAT = -33.5 * Math.PI / 180, LON = -70.65;
+const cielo = new THREE.Color();
+function posicionSol() {
+  const hora = +$('hora').value, mes = +$('mes').value;
+  const n = Math.round(mes * 30.44 + 15);
+  const utc = (mes >= 3 && mes <= 7) ? -4 : -3; // horario de invierno de abril a agosto
+  const B = 2 * Math.PI * (n - 81) / 364;
+  const eot = 9.87 * Math.sin(2 * B) - 7.53 * Math.cos(B) - 1.5 * Math.sin(B); // minutos
+  const solar = hora + (LON - utc * 15) / 15 + eot / 60;
+  const Hh = (solar - 12) * 15 * Math.PI / 180;
+  const dec = 23.44 * Math.PI / 180 * Math.sin(2 * Math.PI * (284 + n) / 365);
+  const alt = Math.asin(Math.sin(LAT) * Math.sin(dec) + Math.cos(LAT) * Math.cos(dec) * Math.cos(Hh));
+  const az = Math.atan2(Math.sin(Hh), Math.cos(Hh) * Math.sin(LAT) - Math.tan(dec) * Math.cos(LAT)) + Math.PI; // desde el norte, hacia el este
+  const rot = +$('norte').value * Math.PI / 180;
+  const N = new THREE.Vector3(Math.sin(rot), 0, -Math.cos(rot)), E = new THREE.Vector3(Math.cos(rot), 0, Math.sin(rot));
+  const dir = N.multiplyScalar(Math.cos(az)).add(E.multiplyScalar(Math.sin(az))).multiplyScalar(Math.cos(alt)).add(new THREE.Vector3(0, Math.sin(alt), 0));
+  sol.position.copy(dir.multiplyScalar(70)); sol.target.position.set(0, 0, 0);
+  const s = Math.max(0, Math.sin(alt));
+  const dia = Math.min(1, Math.max(0, (alt * 180 / Math.PI + 4) / 14));
+  sol.intensity = 2.4 * Math.min(1, s * 3);
+  sol.color.setHSL(0.09, 0.8, 0.55 + 0.4 * Math.min(1, s * 2.5));
+  hemi.intensity = 0.12 + 0.5 * dia;
+  const noche = new THREE.Color(0x0c1420), atardecer = new THREE.Color(0xe9a97a), azul = new THREE.Color(0xa9c9e2);
+  cielo.copy(noche).lerp(atardecer, dia).lerp(azul, Math.min(1, s * 2.2));
+  scene.background = cielo; scene.fog = new THREE.Fog(cielo, 90, 260);
+  const luz = 1 - dia;
+  M.luz.emissive.setHex(0xfff1d6); M.luz.emissiveIntensity = luz * 1.4;
+  M.vidrio.emissive.setHex(0xffcf8a); M.vidrio.emissiveIntensity = luz * 0.55;
+  for (const l of lucesNoche) l.intensity = luz * 1.6;
+  const hh = Math.floor(hora), mm = Math.round((hora - hh) * 60);
+  $('hora-v').textContent = `${String(hh).padStart(2, '0')}:${String(mm).padStart(2, '0')}`;
+}
+for (const id of ['hora', 'mes', 'norte']) $(id).addEventListener('input', posicionSol);
+
+// ------------------------------------------------------------------ vistas y corte
+let vista = 'completa';
+const planoCorte = new THREE.Plane(new THREE.Vector3(0, -1, 0), 1.2);
+$('vista-seg').addEventListener('click', (e) => {
+  const b = e.target.closest('button'); if (!b) return;
+  vista = b.dataset.v;
+  for (const x of $('vista-seg').children) x.setAttribute('aria-pressed', String(x === b));
+  $('corte-campo').hidden = vista !== 'corte';
+  renderer.clippingPlanes = vista === 'corte' ? [planoCorte] : [];
+  ponerEtapa(etapa, false);
+});
+$('corte').addEventListener('input', () => { planoCorte.constant = +$('corte').value; $('corte-v').textContent = (+$('corte').value).toFixed(2).replace('.', ',') + ' m'; });
+$('altura').addEventListener('input', () => {
+  H_NUEVO = +$('altura').value; $('altura-v').textContent = H_NUEVO.toFixed(2).replace('.', ',') + ' m';
+  construirModelo(); aplicarRx(); posicionSol(); seleccionar(selec);
+});
+
+// ------------------------------------------------------------------ etiquetas de recintos
+const capaEtiq = document.createElement('div'); document.body.appendChild(capaEtiq);
+const etiquetas = Object.entries(recintos).sort((a, b) => (b[1].sup || 0) - (a[1].sup || 0) || b[1].rect[2] * b[1].rect[3] - a[1].rect[2] * a[1].rect[3]).map(([k, rc]) => {
+  const d = document.createElement('div');
+  d.className = 'etiqueta' + (rc.tipo === 'nueva' ? ' nueva' : '');
+  const sup = rc.sup ? `${rc.sup.toFixed(2).replace('.', ',')} m²` : `${(rc.rect[2] * rc.rect[3]).toFixed(1).replace('.', ',')} m² a escala`;
+  d.innerHTML = `${rc.nombre.replace('Sala de Capacitación', 'Sala')}<small>${sup}</small>`;
+  d.addEventListener('click', () => seleccionar(k));
+  capaEtiq.appendChild(d);
+  return { d, k, p: new THREE.Vector3(X(rc.rect[0] + rc.rect[2] / 2), 1.0, Z(rc.rect[1] + rc.rect[3] / 2)) };
+});
+let mostrarEtiq = true;
+$('etiq').addEventListener('click', () => { mostrarEtiq = !mostrarEtiq; $('etiq').setAttribute('aria-pressed', String(mostrarEtiq)); });
+const v3 = new THREE.Vector3();
+function moverEtiquetas() {
+  const on = mostrarEtiq && !modoRecorrido;
+  capaEtiq.hidden = !on; if (!on) return;
+  const puestos = [];
+  for (const e of etiquetas) {
+    v3.copy(e.p); v3.y = (vista === 'completa' && etapa >= 4) ? H_NUEVO + 0.6 : 1.0;
+    if (recintos[e.k].tipo === 'casona' && vista === 'completa' && etapa >= 1) v3.y = H_CASONA + H_CASONA2 + 2.2;
+    v3.project(camera);
+    const vis = v3.z < 1 && Math.abs(v3.x) < 1.05 && Math.abs(v3.y) < 1.05;
+    e.d.style.display = vis ? '' : 'none';
+    if (!vis) continue;
+    const x = (v3.x + 1) / 2 * innerWidth, y = (1 - v3.y) / 2 * innerHeight;
+    const w = e.d.offsetWidth / 2 + 3, h = e.d.offsetHeight / 2 + 2;
+    const caja = [x - w, y - h, x + w, y + h];
+    if (puestos.some((p) => caja[0] < p[2] && caja[2] > p[0] && caja[1] < p[3] && caja[3] > p[1]) && e.k !== selec) { e.d.style.display = 'none'; continue; }
+    puestos.push(caja);
+    e.d.style.left = x + 'px'; e.d.style.top = y + 'px';
+  }
+}
+
+// ------------------------------------------------------------------ ficha del recinto
+let selec = null;
+const resalte = new THREE.Group(); scene.add(resalte);
+function esc(s) { return String(s).replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c])); }
+function seleccionar(k) {
+  selec = k;
+  for (const m of pick) { m.material.visible = m.userData.letra === k; }
+  while (resalte.children.length) resalte.remove(resalte.children[0]);
+  if (!k) { $('ficha').hidden = true; return; }
+  const rc = recintos[k], sec = partidas[k];
+  const r = rc.rect, h = rc.tipo === 'casona' ? H_CASONA : H_NUEVO;
+  const borde = new THREE.LineSegments(new THREE.EdgesGeometry(new THREE.BoxGeometry(r[2], h, r[3])), new THREE.LineBasicMaterial({ color: 0xc8372d }));
+  borde.position.set(X(r[0] + r[2] / 2), h / 2 + 0.15, Z(r[1] + r[3] / 2)); resalte.add(borde);
+  $('f-letra').textContent = `Sección ${k} del presupuesto`;
+  $('f-nombre').textContent = rc.nombre;
+  const items = sec.items.filter((i) => i[0].includes('.'));
+  const est = {}; for (const i of items) est[i[4]] = (est[i[4]] || 0) + 1;
+  const tipo = rc.tipo === 'nueva' ? '<span class="chip tipo-nueva">Obra nueva</span>' : rc.tipo === 'casona' ? '<span class="chip tipo-casona">Casona · remodelación</span>' : '<span class="chip tipo-casona">Exterior</span>';
+  const sup = rc.sup ? `<span class="chip tot">${rc.sup.toFixed(2).replace('.', ',')} m² útiles</span>` : '';
+  $('f-datos').innerHTML = tipo + sup + `<span class="chip tot">${items.length} partidas</span>` + ORDEN_ESTADOS.filter((e) => est[e]).map((e) => `<span class="chip e-${e}">${est[e]} ${e.toLowerCase()}</span>`).join('');
+  $('f-tabla').innerHTML = sec.items.map((i) => {
+    if (!i[0].includes('.')) return `<tr class="grupo"><td colspan="3">${esc(i[1])}</td></tr>`;
+    const q = i[3] == null ? '—' : `${i[3].toLocaleString('es-CL', { maximumFractionDigits: 2 })} ${esc(i[2])}`;
+    return `<tr><td class="c">${esc(i[0])}</td><td>${esc(i[1])}<br><span class="chip e-${esc(i[4])}">${esc(i[4]).toLowerCase()}</span></td><td class="q">${q}</td></tr>`;
+  }).join('');
+  $('ficha').hidden = false;
+}
+$('f-cerrar').addEventListener('click', () => seleccionar(null));
+$('lista-rec').innerHTML = Object.entries(recintos).map(([k, rc]) => `<button data-k="${k}" class="${rc.tipo === 'nueva' ? 'nueva' : ''}">${esc(rc.nombre.replace('Sala de Capacitación', 'Sala'))}</button>`).join('');
+$('lista-rec').addEventListener('click', (e) => { const b = e.target.closest('button'); if (b) seleccionar(b.dataset.k); });
+const ray = new THREE.Raycaster(), mouse = new THREE.Vector2();
+let abajo = null;
+renderer.domElement.addEventListener('pointerdown', (e) => { abajo = [e.clientX, e.clientY]; });
+renderer.domElement.addEventListener('pointerup', (e) => {
+  if (!abajo || modoRecorrido || Math.hypot(e.clientX - abajo[0], e.clientY - abajo[1]) > 6) return;
+  mouse.set(e.clientX / innerWidth * 2 - 1, -e.clientY / innerHeight * 2 + 1);
+  ray.setFromCamera(mouse, camera);
+  const hit = ray.intersectObjects(pick)[0];
+  seleccionar(hit ? hit.object.userData.letra : null);
+});
+
+// ------------------------------------------------------------------ recorrido por dentro
+let modoRecorrido = false, yaw = 0, pitch = 0;
+const teclas = {};
+const colision = muros.nuevos.concat(muros.existentes, muros.vanos_nuevos.filter((v) => v[4] === 'ventana'));
+function choca(x, y) {
+  if (etapa < 3) return false;
+  return colision.some((r) => x > r[0] - 0.22 && x < r[0] + r[2] + 0.22 && y > r[1] - 0.22 && y < r[1] + r[3] + 0.22);
+}
+let pos = [7.0, 14.6];
+function aviso(t, ms = 4200) { $('aviso').textContent = t; $('aviso').hidden = false; clearTimeout(aviso.t); aviso.t = setTimeout(() => { $('aviso').hidden = true; }, ms); }
+function entrarRecorrido() {
+  modoRecorrido = true; controls.enabled = false; seleccionar(null);
+  pos = [7.0, 14.6]; yaw = -Math.PI / 2; pitch = 0;
+  $('pad').hidden = false; $('panel').hidden = true;
+  aviso('Arrastra para mirar. Avanza con las flechas, WASD o los botones.');
+}
+function salirRecorrido() { modoRecorrido = false; controls.enabled = true; $('pad').hidden = true; $('panel').hidden = false; encuadre(); }
+$('recorrer').addEventListener('click', entrarRecorrido);
+$('salir').addEventListener('click', salirRecorrido);
+addEventListener('keydown', (e) => { if (!modoRecorrido) return; teclas[e.key.toLowerCase()] = true; if (e.key === 'Escape') salirRecorrido(); });
+addEventListener('keyup', (e) => { teclas[e.key.toLowerCase()] = false; });
+for (const b of $('pad').querySelectorAll('[data-k]')) {
+  const on = (v) => (e) => { e.preventDefault(); teclas['pad-' + b.dataset.k] = v; };
+  b.addEventListener('pointerdown', on(true)); b.addEventListener('pointerup', on(false)); b.addEventListener('pointerleave', on(false)); b.addEventListener('pointercancel', on(false));
+}
+let arrastre = null;
+renderer.domElement.addEventListener('pointerdown', (e) => { if (modoRecorrido) arrastre = [e.clientX, e.clientY]; });
+addEventListener('pointermove', (e) => {
+  if (!modoRecorrido || !arrastre) return;
+  yaw -= (e.clientX - arrastre[0]) * 0.004; pitch = Math.max(-1.1, Math.min(1.1, pitch - (e.clientY - arrastre[1]) * 0.004));
+  arrastre = [e.clientX, e.clientY];
+});
+addEventListener('pointerup', () => { arrastre = null; });
+function pasoRecorrido(dt) {
+  const f = (teclas.w || teclas.arrowup || teclas['pad-f'] ? 1 : 0) - (teclas.s || teclas.arrowdown || teclas['pad-b'] ? 1 : 0);
+  const g = (teclas.a || teclas.arrowleft || teclas['pad-l'] ? 1 : 0) - (teclas.d || teclas.arrowright || teclas['pad-r'] ? 1 : 0);
+  yaw += g * dt * 1.6;
+  const v = 1.5 * dt * f;
+  const nx = pos[0] - Math.sin(yaw) * v, ny = pos[1] - Math.cos(yaw) * v;
+  if (!choca(nx, pos[1])) pos[0] = nx;
+  if (!choca(pos[0], ny)) pos[1] = ny;
+  camera.position.set(X(pos[0]), 1.6, Z(pos[1]));
+  camera.rotation.set(pitch, yaw, 0, 'YXZ');
+}
+
+// ------------------------------------------------------------------ cámara y bucle
+function encuadre() {
+  const cel = innerWidth < 760, lejos = cel ? 1.25 : 0.78;
+  controls.target.set(cel ? 0 : -5, 0, cel ? 4 : 1);
+  camera.position.set(controls.target.x - 20 * lejos, 27 * lejos, controls.target.z + 31 * lejos);
+  camera.rotation.set(0, 0, 0);
+  controls.update();
+}
+$('encuadre').addEventListener('click', encuadre);
+for (const b of document.querySelectorAll('.pestanas button')) b.addEventListener('click', () => {
+  for (const x of document.querySelectorAll('.pestanas button')) { x.setAttribute('aria-selected', String(x === b)); $(x.dataset.p).hidden = x !== b; }
+});
+addEventListener('resize', () => { camera.aspect = innerWidth / innerHeight; camera.updateProjectionMatrix(); renderer.setSize(innerWidth, innerHeight); });
+
+construirModelo();
+encuadre();
+posicionSol();
+ponerEtapa(5, false);
+let previo = performance.now();
+renderer.setAnimationLoop((ahora) => {
+  const dt = Math.min(0.05, (ahora - previo) / 1000); previo = ahora;
+  animar(ahora);
+  if (modoRecorrido) pasoRecorrido(dt); else controls.update();
+  moverEtiquetas();
+  renderer.render(scene, camera);
+});
+})();
+</script>

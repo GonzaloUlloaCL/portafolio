@@ -1,0 +1,2611 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>POS Patata — Cajero</title>
+<link rel="manifest" href="/manifest.webmanifest">
+<link rel="icon" href="/icon.svg" type="image/svg+xml">
+<meta name="theme-color" content="#2a2622">
+<meta name="mobile-web-app-capable" content="yes">
+<script>
+  // Aplica el tema guardado ANTES de pintar (evita el flash del tema equivocado).
+  // Clave COMPARTIDA con wms.html: cambiar de noche en el POS tambien lo deja
+  // en noche al entrar a /wms/ (misma localStorage, mismo origen).
+  try{ document.documentElement.setAttribute('data-tema', localStorage.getItem('patata_tema')||'dia'); }catch(e){}
+</script>
+<style>
+  :root{
+    --bg:#f4f1ec; --panel:#ffffff; --ink:#2a2622; --muted:#8a8178;
+    --line:#e7e1d8; --accent:#e8731f; --accent-d:#c95e12;
+    --ok:#2e9e5b; --warn:#d8a300; --bad:#d2452f; --chip:#f0ebe3;
+    --shadow:0 1px 3px rgba(0,0,0,.08); --header-bg:var(--ink);
+  }
+  /* --- Turno Noche (14-jul-2026): mismo look de dia, boton aparte para cambiar.
+     Paleta de marca (rojo/dorado/oliva sobre espresso), no un dark-mode generico. --- */
+  :root[data-tema="noche"]{
+    --bg:#1E1108; --panel:#2F1D12; --ink:#F3E9D9; --muted:#B79A7C;
+    --line:#4a3520; --accent:#FF4B3E; --accent-d:#E63A2E;
+    --ok:#9BCB63; --warn:#FFC64A; --bad:#FF6A55; --chip:#3a2c1c;
+    --shadow:0 1px 3px rgba(0,0,0,.4); --header-bg:#140C05;
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0;height:100%}
+  body{font-family:system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;
+    background:var(--bg);color:var(--ink);font-size:15px}
+  header{display:flex;align-items:center;gap:12px;padding:10px 16px;
+    background:var(--header-bg);color:#fff}
+  header .logo{font-size:22px}
+  header h1{font-size:17px;margin:0;font-weight:700;letter-spacing:.3px}
+  header .sub{font-size:12px;color:#c9c2b8;margin-left:auto}
+  .grid{display:grid;grid-template-columns:1.25fr 1fr 1fr;gap:10px;padding:10px;
+    height:calc(100vh - 52px);overflow:hidden}
+  .col{background:var(--panel);border:1px solid var(--line);border-radius:12px;
+    display:flex;flex-direction:column;overflow:hidden;box-shadow:var(--shadow)}
+  .col h2{font-size:13px;text-transform:uppercase;letter-spacing:.6px;color:var(--muted);
+    margin:0;padding:9px 14px 6px}
+  .col .body{padding:0 14px 10px;overflow:auto;flex:1}
+
+  /* --- menu --- */
+  .cats{display:flex;flex-wrap:wrap;gap:6px;padding:0 14px 10px}
+  .cat{border:1px solid var(--line);background:var(--chip);color:var(--ink);
+    border-radius:999px;padding:6px 12px;font-size:13px;cursor:pointer;font-weight:600}
+  .cat.active{background:var(--accent);border-color:var(--accent);color:#fff}
+  .cat-nota{font-size:12px;color:var(--muted);padding:0 14px 8px}
+  .prods{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+  .prod{border:1px solid var(--line);background:var(--panel);color:var(--ink);border-radius:10px;padding:10px;
+    text-align:left;cursor:pointer;transition:.08s}
+  .prod:hover{border-color:var(--accent);transform:translateY(-1px)}
+  .prod .n{font-weight:700;font-size:14px;display:flex;justify-content:space-between;gap:6px}
+  .prod .d{font-size:11px;color:var(--muted);margin-top:2px;line-height:1.25}
+  .prod .p{font-size:13px;color:var(--accent-d);font-weight:700;margin-top:6px}
+  .badge2x{font-size:10px;background:var(--accent);color:#fff;border-radius:5px;
+    padding:1px 5px;font-weight:700}
+
+  /* --- pedido --- */
+  .items{display:flex;flex-direction:column;gap:5px;margin-bottom:7px}
+  .item{display:flex;flex-direction:column;gap:4px;border:1px solid var(--line);
+    border-radius:9px;padding:6px 8px}
+  .item-main{display:flex;align-items:center;gap:8px}
+  .item .info{flex:1;min-width:0}
+  .item .info .t{font-weight:600;font-size:14px}
+  .item .info .s{font-size:11px;color:var(--muted)}
+  .tag{display:inline-block;background:var(--chip);border-radius:5px;padding:0 6px;
+    font-size:11px;font-weight:700;color:var(--accent-d)}
+  .nota-item{width:100%;border:1px dashed var(--line);border-radius:7px;padding:5px 8px;
+    font-size:12px;font-family:inherit;background:var(--panel)}
+  .nota-item:focus{border-style:solid;border-color:var(--accent);outline:none}
+  .nota-item::placeholder{color:var(--muted)}
+  .qty{display:flex;align-items:center;gap:6px}
+  .qty button{width:26px;height:26px;border-radius:7px;border:1px solid var(--line);
+    background:var(--chip);font-size:16px;cursor:pointer;line-height:1}
+  .qty span{min-width:18px;text-align:center;font-weight:700}
+  .x{border:none;background:none;color:var(--bad);cursor:pointer;font-size:16px;padding:2px 4px}
+  .vacio{color:var(--muted);font-size:13px;text-align:center;padding:18px 0}
+
+  .fields{display:grid;grid-template-columns:1fr 1fr;gap:6px;margin:6px 0}
+  .fields label{font-size:11px;color:var(--muted);display:block;margin-bottom:2px}
+  .fields input,.fields select,.fields textarea{width:100%;border:1px solid var(--line);
+    border-radius:8px;padding:7px 8px;font-size:14px;font-family:inherit;background:var(--panel);color:var(--ink)}
+  .fields .full{grid-column:1 / -1}
+  .seg{display:flex;gap:0;border:1px solid var(--line);border-radius:8px;overflow:hidden}
+  .seg button{flex:1;border:none;background:var(--panel);color:var(--ink);padding:7px;cursor:pointer;font-size:13px;font-weight:600}
+  .seg button.on{background:var(--accent);color:#fff}
+  .pagos{display:flex;flex-wrap:wrap;gap:6px}
+  .pagos button{border:1px solid var(--line);background:var(--panel);color:var(--ink);border-radius:8px;padding:8px 12px;
+    cursor:pointer;font-size:13px;font-weight:600;text-transform:capitalize}
+  .pagos button.on{background:var(--accent);color:#fff;border-color:var(--accent)}
+
+  .total{display:flex;justify-content:space-between;align-items:baseline;
+    border-top:2px solid var(--line);margin-top:5px;padding-top:8px}
+  .total .lbl{font-size:13px;color:var(--muted)}
+  .total .val{font-size:26px;font-weight:800}
+  .promo-nota{font-size:11px;color:var(--accent-d);text-align:right}
+  .alert{background:#fbeee9;border:1px solid #f0c4b5;color:var(--bad);
+    border-radius:8px;padding:7px 9px;font-size:12px;margin-top:8px}
+  .btn{width:100%;border:none;border-radius:10px;padding:13px;font-size:16px;
+    font-weight:700;cursor:pointer;margin-top:10px}
+  .btn.primary{background:var(--accent);color:#fff}
+  .btn.primary:disabled{background:#d9cfc4;cursor:not-allowed}
+  .btn.ghost{background:var(--chip);color:var(--ink)}
+
+  /* --- cola --- */
+  /* Color por MODALIDAD, siempre visible (02-jul-2026): antes solo se pintaba
+     en_preparacion (cocina-local/cocina-delivery); ahora se ve de un vistazo en
+     toda la cola sin importar el estado. delivery=naranjo, local=verde, retiro=negro. */
+  .pedido{border:1px solid var(--line);border-radius:9px;padding:7px 9px;margin-bottom:6px}
+  .pedido.mod-local{border-left:5px solid var(--ok);background:#f1faf4}
+  .pedido.mod-delivery{border-left:5px solid var(--accent);background:#fff4ea}
+  .pedido.mod-retiro{border-left:5px solid #1a1a1a;background:#f4f4f3}
+  /* Pedido PROGRAMADO (04-ago-2026, P29): morado, pisa el color de modalidad a
+     proposito -- tiene que distinguirse de un vistazo de un pedido normal, sea cual
+     sea su modalidad, para que cocina no lo prepare antes de la hora pactada. */
+  .pedido.programado{border-left:5px solid #7F56D9;background:#f6f2fd}
+  .programado-aviso{font-weight:700;font-size:12px;color:#7F56D9;margin:3px 0}
+  /* Pre-cocina (07-jul-2026, pedido de Gonza): mientras el pedido NO fue a cocina
+     (estado 'recibido' o el legacy 'confirmado') el fondo es BLANCO, para ver de un
+     vistazo lo que todavia falta mandar a la cocina; conserva el borde de color de su
+     modalidad. Al pasar a cocina toma el fondo de color de su modalidad. Va DESPUES de
+     las reglas .mod-* para ganar por orden (misma especificidad, 2 clases). */
+  .pedido.est-recibido, .pedido.est-confirmado{background:var(--panel)}
+  .pedido .top{display:flex;align-items:center;gap:6px;margin-bottom:3px}
+  .pedido .id{font-weight:800}
+  .canal{font-size:10px;border-radius:5px;padding:1px 6px;font-weight:700;text-transform:uppercase}
+  .canal.cajero{background:#e9eef6;color:#3a5a8a}
+  .canal.whatsapp{background:#e3f4e8;color:#2e7d46}
+  .canal.web{background:#f3ebf7;color:#7a4a9a}
+  .estado{margin-left:auto;font-size:11px;font-weight:700;padding:2px 8px;border-radius:999px;
+    background:var(--chip);text-transform:uppercase;letter-spacing:.4px}
+  .estado.recibido{background:#fff2dc;color:#9a6b00}
+  .estado.confirmado{background:#e9eef6;color:#3a5a8a}
+  .estado.en_preparacion{background:#fde7d6;color:#b25a12}
+  .estado.listo{background:#e3f4e8;color:#1f7a3e}
+  /* EN REPARTO (29-jul-2026): mismo estado `listo` del motor, pero para delivery
+     significa "va en la moto", NO "terminado" -- por eso azul y no verde: en plena
+     cocina el verde se lee como "ya está" y este pedido todavía no llegó. */
+  .estado.listo.reparto{background:#dbe7fd;color:#1d4ed8}
+  .pedido .resumen{font-size:12px;color:var(--muted);line-height:1.25}
+  .pedido .pie{display:flex;align-items:center;gap:6px;margin-top:5px;flex-wrap:wrap}
+  .pedido .pie .t{font-weight:800;margin-right:auto}
+  .mini{border:1px solid var(--line);background:var(--panel);color:var(--ink);border-radius:7px;padding:5px 9px;
+    font-size:12px;cursor:pointer;font-weight:600}
+  .mini.go{background:var(--ok);color:#fff;border-color:var(--ok)}
+  .mini.cancel{color:var(--bad);border-color:#f0c4b5}
+  .badge-chat{position:absolute;top:-6px;right:-6px;background:var(--bad);color:#fff;
+    border-radius:10px;min-width:16px;height:16px;font-size:10px;line-height:16px;
+    text-align:center;padding:0 4px;font-weight:700}
+  .chat-burbuja{margin:6px 0;padding:8px 10px;border-radius:10px;max-width:85%;font-size:13px}
+  .chat-burbuja.bot{background:#eef3ff;margin-left:auto}
+  .chat-burbuja.cliente{background:#fff7e6}
+  .chat-quien{font-size:11px;color:var(--muted);margin-bottom:2px;font-weight:600}
+
+  /* --- modal --- */
+  .overlay{position:fixed;inset:0;background:rgba(0,0,0,.4);display:none;
+    align-items:center;justify-content:center;z-index:50;padding:16px}
+  .overlay.show{display:flex}
+  .modal{background:var(--panel);color:var(--ink);border-radius:14px;max-width:440px;width:100%;max-height:90vh;
+    overflow:auto;padding:18px}
+  .modal h3{margin:0 0 4px}
+  .modal .opts{display:flex;flex-wrap:wrap;gap:7px;margin:10px 0}
+  .opt{border:1px solid var(--line);background:var(--chip);border-radius:9px;
+    padding:9px 12px;cursor:pointer;font-size:14px;font-weight:600}
+  .opt.sel{background:var(--accent);color:#fff;border-color:var(--accent)}
+  .modal .lbl{font-size:12px;color:var(--muted);margin-top:8px}
+  pre.comanda{background:#1d1a17;color:#f0e9df;border-radius:10px;padding:14px;
+    font-size:13px;line-height:1.4;overflow:auto;white-space:pre-wrap}
+  .toast{position:fixed;bottom:18px;left:50%;transform:translateX(-50%);
+    background:var(--ink);color:#fff;padding:11px 18px;border-radius:10px;font-weight:600;
+    opacity:0;transition:.25s;z-index:60}
+  .toast.show{opacity:1}
+
+  /* --- caja --- */
+  .caja-hdr{display:flex;align-items:center;gap:8px;font-size:12px;color:#e7e0d6;flex-wrap:wrap}
+  .caja-hdr b{color:#fff}
+  .caja-hdr .k{color:#b9b1a6}
+  .caja-hdr .cj{font-weight:800;color:#fff;background:#3a3530;border-radius:6px;padding:2px 8px}
+  .caja-hdr .cj.cerrada{color:#f0b6a8;background:#4a2a24}
+  .cj-btn{border:1px solid #5a534b;background:#3a3530;color:#fff;border-radius:7px;
+    padding:4px 10px;font-size:12px;cursor:pointer;font-weight:600}
+  .cj-btn.cerrar{background:var(--accent);border-color:var(--accent)}
+  .tabla{width:100%;border-collapse:collapse;margin:8px 0;font-size:14px}
+  .tabla td{padding:5px 4px;border-bottom:1px solid var(--line)}
+  .tabla .sub-h{color:var(--muted);font-size:11px;text-transform:uppercase;
+    padding-top:10px;border-bottom:none}
+  .modal input{width:100%;border:1px solid var(--line);border-radius:8px;padding:8px;
+    font-size:14px;font-family:inherit;margin-bottom:6px;background:var(--panel);color:var(--ink)}
+  .big-input{font-size:22px;font-weight:800;text-align:right;padding:10px}
+  .descuadre{text-align:center;font-weight:800;font-size:16px;margin:6px 0 10px}
+  .descuadre .ok{color:var(--ok)} .descuadre .warn{color:var(--warn)} .descuadre .bad{color:var(--bad)}
+  .vuelto{font-size:14px;margin-top:4px;font-weight:700;color:var(--accent-d)}
+  .vuelto .bad{color:var(--bad)}
+  .cliente-estado{font-size:12px;margin-top:4px;font-weight:600;min-height:14px}
+  .cliente-estado.ok{color:var(--ok)}
+  .cliente-estado.nuevo{color:var(--accent-d)}
+  .sugerencias{border:1px solid var(--line);border-radius:8px;margin-top:4px;max-height:170px;overflow:auto;background:var(--panel)}
+  .sugerencias div{padding:7px 9px;cursor:pointer;font-size:13px;border-bottom:1px solid var(--line)}
+  .sugerencias div:last-child{border-bottom:none}
+  .sugerencias div:hover{background:var(--chip)}
+  .btn-buscar{background:var(--accent);color:#fff;border:none;border-radius:8px;padding:0 14px;cursor:pointer;font-weight:700}
+  .banner-edit{display:flex;align-items:center;gap:8px;background:#fff3e6;border:1px solid #f0c98a;
+    border-radius:8px;padding:8px 10px;margin-bottom:8px;font-size:13px;font-weight:700;color:var(--accent-d)}
+
+  /* --- version movil (03-jul, "cajero portatil"): en pantallas chicas el POS se
+     convierte en una app de 3 pestañas (Menu / Pedido / Cola) con barra inferior
+     fija, en vez de 3 columnas apiladas en un scroll eterno. Mismas preferencias
+     de la version escritorio (colores por modalidad, espaciado compacto, labels):
+     es el MISMO archivo, no un fork — lo que se cambie aqui se ve en ambos. --- */
+  .tabbar{display:none;position:fixed;bottom:0;left:0;right:0;z-index:40;
+    background:var(--header-bg);border-top:1px solid #4a443d;
+    padding:4px 6px calc(4px + env(safe-area-inset-bottom))}
+  .tabbar button{flex:1;border:none;background:none;color:#c9c2b8;font-size:13px;
+    font-weight:700;padding:9px 4px;border-radius:9px;cursor:pointer;line-height:1.2}
+  .tabbar button.on{background:#3a3530;color:#fff}
+  .tabbar button .tb-sub{display:block;font-size:10px;font-weight:600;color:var(--accent);margin-top:2px}
+  @media(max-width:760px){
+    body{font-size:16px}                      /* mas legible en mano, no achica nada */
+    header{flex-wrap:wrap;gap:6px;padding:8px 10px}
+    header .sub{margin-left:0}
+    .grid{grid-template-columns:1fr;height:auto;overflow:visible;padding:8px;
+      padding-bottom:76px}                     /* aire para la tabbar */
+    .col{display:none;min-height:calc(100vh - 150px)}
+    .col.mvisible{display:flex}
+    .tabbar{display:flex}
+    /* targets tactiles: dedos, no mouse (percepcion POV usuario) */
+    .prod{padding:12px 10px}
+    .cat{padding:9px 14px;font-size:14px}
+    .seg button,.pagos button{padding:12px 8px;font-size:15px}
+    .mini{padding:9px 12px;font-size:14px}
+    .qty button{width:36px;height:36px;font-size:20px}
+    .btn{padding:15px;font-size:17px}
+    .fields input,.fields select{padding:11px 10px;font-size:16px}
+    .x{font-size:20px;padding:6px 8px}
+    .prods{grid-template-columns:1fr 1fr}
+  }
+
+  @media print{
+    @page{size:80mm auto;margin:3mm}
+    body *{visibility:hidden}
+    #modal,#modal *{visibility:visible}
+    #modal{position:absolute;inset:0;background:#fff;padding:0}
+    .overlay{background:#fff;padding:0;display:block}
+    .modal{box-shadow:none;max-width:none;width:72mm;padding:0}
+    .modal h3{font-size:13px;margin:0 0 4px}
+    pre.comanda{background:#fff;color:#000;border:none;padding:0;font-size:11px;
+      white-space:pre-wrap;font-family:"Consolas","Courier New",monospace}
+    .no-print{display:none!important}
+  }
+  @media(max-width:1000px){.grid{grid-template-columns:1fr;height:auto;overflow:visible}}
+
+  /* --- Turno Noche: overrides puntuales para los colores "tinte" que en modo dia
+     son un color plano propio (no el mismo blanco del panel), asi que no bastaba
+     con los tokens de :root. Cada uno preserva el MISMO significado (verde=local,
+     naranjo=delivery, etc), solo oscurecido. --- */
+  [data-tema="noche"] .pedido.mod-local{background:#16241a}
+  [data-tema="noche"] .pedido.mod-delivery{background:#2e2013}
+  [data-tema="noche"] .pedido.mod-retiro{background:#241a10;border-left-color:#c2a988}
+  [data-tema="noche"] .pedido.programado{background:#251c38;border-left-color:#B794F6}
+  [data-tema="noche"] .programado-aviso{color:#B794F6}
+  [data-tema="noche"] .canal.cajero{background:#1a2a3a;color:#8ab4e8}
+  [data-tema="noche"] .canal.whatsapp{background:#16301f;color:#7ed99a}
+  [data-tema="noche"] .canal.web{background:#2a1c34;color:#c99ee0}
+  [data-tema="noche"] .estado.recibido{background:#3a2c10;color:#FFC64A}
+  [data-tema="noche"] .estado.confirmado{background:#1a2a3a;color:#8ab4e8}
+  [data-tema="noche"] .estado.en_preparacion{background:#3a2410;color:#FF9D5C}
+  [data-tema="noche"] .estado.listo{background:#16301f;color:#7ed99a}
+  [data-tema="noche"] .estado.listo.reparto{background:#16233f;color:#7EA6FF}
+  [data-tema="noche"] .chat-burbuja.bot{background:#1a2438}
+  [data-tema="noche"] .chat-burbuja.cliente{background:#332512}
+  [data-tema="noche"] .btn.primary:disabled{background:#4a3a2a;color:#8a7a68}
+  [data-tema="noche"] .alert{background:#3a1e16;border-color:#7a4030}
+  [data-tema="noche"] .banner-edit{background:#3a2a12;border-color:#8a6a2c}
+  [data-tema="noche"] .mini.cancel{border-color:#5a3428}
+  [data-tema="noche"] #botPendBanner{background:#3a1e16!important;color:#FF9D8A!important;border-color:#7a4030!important}
+
+  /* --- boton del toggle dia/noche, junto al usuario en el header --- */
+  .theme-toggle{border:1px solid rgba(255,255,255,.28);background:rgba(255,255,255,.08);
+    color:#fff;border-radius:999px;padding:5px 11px;font-size:12.5px;font-weight:600;
+    cursor:pointer;display:flex;align-items:center;gap:5px;margin-left:8px}
+  .theme-toggle:hover{background:rgba(255,255,255,.16)}
+</style>
+</head>
+<body>
+<header>
+  <span class="logo">🥔</span>
+  <h1 id="titulo">POS Patata — Cajero</h1>
+  <div class="caja-hdr" id="cajaHdr"></div>
+  <button class="cj-btn" id="btnAdmin" style="display:none" onclick="pantallaAdmin()">⚙ Admin</button>
+  <button class="cj-btn" id="btnWMS" style="display:none" onclick="window.open('/wms/','_blank')">📦 Inventario y Finanzas</button>
+  <button class="theme-toggle no-print" id="btnTema" onclick="alternarTema()" title="Cambiar a Turno Noche"></button>
+  <span class="sub" id="usuarioHdr"></span>
+  <span class="sub" id="reloj" style="margin-left:12px"></span>
+</header>
+
+<div class="grid">
+  <!-- MENU -->
+  <section class="col">
+    <h2>Menú — toca un producto</h2>
+    <div class="cats" id="cats"></div>
+    <div class="cat-nota" id="catNota"></div>
+    <div class="body"><div class="prods" id="prods"></div></div>
+  </section>
+
+  <!-- PEDIDO ACTUAL -->
+  <section class="col">
+    <h2>Pedido actual</h2>
+    <div class="body">
+      <div id="bannerEdit" class="banner-edit" style="display:none">
+        ✏️ Editando pedido #<span id="bannerEditId"></span>
+        <button type="button" class="mini" style="margin-left:auto" onclick="cancelarEdicion()">Cancelar edición</button>
+      </div>
+      <div class="fields">
+        <div class="full">
+          <label>Seleccione modalidad</label>
+          <div class="seg" id="segModalidad">
+            <button data-v="retiro">Retiro</button>
+            <button data-v="delivery">Delivery</button>
+            <button data-v="local" class="on">Local</button>
+          </div>
+        </div>
+        <div class="full" id="boxTelefono">
+          <label>Teléfono del cliente (9 dígitos)</label>
+          <div style="display:flex;gap:6px">
+            <input id="telefono" inputmode="numeric" placeholder="9 1234 5678" oninput="onTelInput()" autocomplete="off" style="flex:1">
+            <button type="button" class="btn-buscar" onclick="buscarCliente()">Buscar</button>
+          </div>
+          <div id="clienteEstado" class="cliente-estado"></div>
+          <div class="sugerencias" id="sugerenciasTel" style="display:none"></div>
+        </div>
+        <div class="full">
+          <label id="lblCliente">Cliente</label>
+          <input id="cliente" placeholder="Nombre del cliente" oninput="onClienteInput()" autocomplete="off">
+          <div class="sugerencias" id="sugerencias" style="display:none"></div>
+        </div>
+        <div class="full" id="boxMesa" style="display:none">
+          <label>Mesa (opcional)</label>
+          <input id="mesa" inputmode="numeric" placeholder="N° de mesa">
+        </div>
+        <div id="boxDelivery" style="display:none;grid-column:1/-1;gap:8px" class="fields">
+          <div><label>Dirección</label><input id="direccion" onblur="recalcularCobroDelivery()"></div>
+          <div><label>Cobro delivery ($)</label><input id="deliveryCobro" type="number" min="0" step="1" value="0"></div>
+          <div class="full" id="boxDireccionesGuardadas" style="display:none">
+            <label>Direcciones guardadas de este cliente</label>
+            <div class="pagos" id="direccionesGuardadas"></div>
+          </div>
+        </div>
+        <div class="full">
+          <label>Seleccione forma de pago</label>
+          <div class="pagos" id="pagos"></div>
+          <div style="margin-top:6px">
+            <a href="#" id="lnkDividir" onclick="dividirPagoModal();return false" style="font-size:12px;color:var(--accent-d);font-weight:600">÷ Dividir en varios métodos</a>
+            <div id="pagoMixtoResumen" class="cliente-estado ok" style="display:none"></div>
+          </div>
+        </div>
+        <div class="full" id="boxVuelto" style="display:none">
+          <label>Paga con (efectivo, opcional → calcula el vuelto)</label>
+          <input id="pagaCon" type="number" min="0" placeholder="Monto con que paga el cliente">
+          <div id="vueltoCalc" class="vuelto"></div>
+        </div>
+        <div class="full">
+          <label>Comentarios de la comanda / entrega (opcional)</label>
+          <input id="notas" placeholder="Ej: casa esquina · cuidado con el perro · dar la vuelta por el portón">
+        </div>
+      </div>
+
+      <!-- Bloque de armar pedido (02-jul-2026): movido aca, entre los comentarios
+           de la comanda y el total, a pedido de Gonza. -->
+      <div class="items" id="items"></div>
+
+      <div class="total">
+        <div><div class="lbl">Total a cobrar</div></div>
+        <div style="text-align:right">
+          <div class="val" id="totalVal">$0</div>
+          <div class="promo-nota" id="promoNota"></div>
+        </div>
+      </div>
+      <div id="alertBox"></div>
+
+      <button class="btn primary" id="btnCrear" disabled onclick="crearPedido()">Crear pedido</button>
+      <button class="btn ghost no-print" onclick="limpiarPedido()">Vaciar</button>
+    </div>
+  </section>
+
+  <!-- COLA -->
+  <section class="col">
+    <h2 style="display:flex;align-items:center;gap:8px">Cola de pedidos (cocina)
+      <button class="mini no-print" style="margin-left:auto;position:relative;text-transform:none"
+        onclick="abrirChatBot()">💬 Bot<span id="botBadge" class="badge-chat" style="display:none"></span></button>
+    </h2>
+    <div id="botPendBanner" class="no-print" style="display:none;background:#fee2e2;color:#991b1b;
+      border:1px solid #f3aeae;border-radius:8px;padding:8px 10px;margin-bottom:8px;font-size:12.5px;font-weight:600">
+    </div>
+    <div class="body" id="cola"><div class="vacio">Sin pedidos activos.</div></div>
+  </section>
+</div>
+
+<!-- BARRA MOVIL (03-jul): solo visible bajo 760px; en escritorio no existe -->
+<nav class="tabbar no-print" id="tabbar">
+  <button class="on" id="tabBtn0" onclick="setTabMovil(0)">🍟 Menú</button>
+  <button id="tabBtn1" onclick="setTabMovil(1)">🧾 Pedido<span class="tb-sub" id="tabPedidoSub"></span></button>
+  <button id="tabBtn2" onclick="setTabMovil(2)">🔥 Cola<span class="tb-sub" id="tabColaSub"></span></button>
+</nav>
+
+<!-- MODAL -->
+<div class="overlay" id="modal"><div class="modal" id="modalBody"></div></div>
+<div class="toast" id="toast"></div>
+
+<div class="overlay show" id="login" style="z-index:100">
+  <div class="modal" style="max-width:360px">
+    <h3>🥔 Ingreso al POS</h3>
+    <div class="lbl">Usuario</div>
+    <select id="loginUser" style="width:100%;padding:9px;border:1px solid var(--line);border-radius:8px;margin-bottom:8px;font-size:15px"></select>
+    <div class="lbl">PIN</div>
+    <input id="loginPin" type="password" inputmode="numeric" placeholder="PIN"
+      style="width:100%;padding:9px;border:1px solid var(--line);border-radius:8px;font-size:15px"
+      onkeydown="if(event.key==='Enter')hacerLogin()">
+    <div id="loginError" style="color:var(--bad);font-size:13px;font-weight:600;min-height:16px;margin:6px 0"></div>
+    <button class="btn primary" onclick="hacerLogin()">Entrar</button>
+  </div>
+</div>
+
+<script>
+const $ = s => document.querySelector(s);
+// Escapa texto que viene de AFUERA (nombre, dirección o mensaje que escribió un
+// cliente por WhatsApp) antes de meterlo en un innerHTML. Sin esto, un cliente que
+// se llame `<img onerror=...>` ejecuta código en la pantalla del local.
+const esc = s => String(s==null?'':s)
+  .replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')
+  .replace(/"/g,'&quot;').replace(/'/g,'&#39;');
+
+// ---------- Turno Noche (14-jul-2026): toggle dia/noche, clave compartida con /wms/ ----------
+function pintarBotonTema(){
+  const noche = document.documentElement.getAttribute('data-tema')==='noche';
+  const b=$('#btnTema'); if(!b) return;
+  b.textContent = noche ? '☀ Turno Día' : '🌙 Turno Noche';
+  b.title = noche ? 'Volver al turno día' : 'Cambiar a Turno Noche';
+}
+function alternarTema(){
+  const actual = document.documentElement.getAttribute('data-tema')==='noche' ? 'noche' : 'dia';
+  const nuevo = actual==='noche' ? 'dia' : 'noche';
+  document.documentElement.setAttribute('data-tema', nuevo);
+  void document.body.offsetHeight; // fuerza el recalculo de estilos de inmediato (sin costo)
+  try{ localStorage.setItem('patata_tema', nuevo); }catch(e){}
+  pintarBotonTema();
+}
+pintarBotonTema();
+let MENU=null, catActual=0, pedido=[], TRANS={}, modalidad="local", formaPago=null;
+let CAJA=null, totalActual=0, editandoId=null;   // CAJA = resumen de la caja abierta; editandoId = pedido en edición
+let pagosUI=null, pagoConUI=null;   // pagosUI: array [{metodo,monto}] = pago dividido; pagoConUI: efectivo con que paga
+let SESION=null;   // usuario logueado + permisos
+// Toda llamada al propio servidor lleva el token de sesion (la puerta de la API exige sesion
+// en todo /api/). Se envuelve fetch una sola vez en vez de tocar las ~68 llamadas.
+(function(){ const _f=window.fetch.bind(window);
+  window.fetch=function(u,o){ o=o||{}; try{
+    const url=(typeof u==='string')?u:(u&&u.url)||'';
+    if(SESION&&SESION.sesion&&(url.startsWith('/')||url.startsWith(location.origin))){
+      const h=new Headers(o.headers||{}); if(!h.has('X-Sesion')) h.set('X-Sesion',SESION.sesion); o.headers=h; }
+  }catch(e){} return _f(u,o); }; })();
+
+async function cargarUsuariosLogin(){
+  try{ const d=await (await fetch('/api/usuarios-login')).json();
+    $('#loginUser').innerHTML=(d.usuarios||[]).filter(u=>u.activo).map(u=>`<option value="${(u.nombre||'').replace(/"/g,'')}">${u.nombre} · ${u.perfil||'—'}</option>`).join('');
+  }catch(e){}
+}
+async function hacerLogin(){
+  const ident=$('#loginUser').value, pin=$('#loginPin').value;
+  let r; try{ r=await fetch('/api/login',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({identificador:ident,pin})}); }catch(e){ $('#loginError').textContent='Sin conexión'; return; }
+  if(!r.ok){ $('#loginError').textContent='PIN incorrecto'; $('#loginPin').value=''; return; }
+  SESION=await r.json();
+  $('#login').classList.remove('show');
+  $('#usuarioHdr').innerHTML=`👤 ${SESION.nombre} · <a href="#" onclick="salir();return false" style="color:#c9c2b8;text-decoration:underline">salir</a>`;
+  $('#btnAdmin').style.display = tabsAdminDisponibles().length ? 'inline-block' : 'none';
+  $('#btnWMS').style.display = (puede('ver_reportes_wms')||puede('gestionar_insumos')||puede('ver_finanzas')) ? 'inline-block' : 'none';
+  init();
+}
+const puede = p => !!(SESION && (SESION.permisos||[]).includes(p));
+function salir(){ try{ fetch('/api/logout',{method:'POST',headers:headersConUsuario()}); }catch(e){} SESION=null; adminMenuCache=null; adminMenuCatSel=null; location.reload(); }
+// El backend vuelve a validar el permiso el mismo (punto 21c); esto solo IDENTIFICA
+// quien esta pidiendo la accion (nunca hay que confiar en lo que decida el frontend).
+function headersConUsuario(){
+  const h = {'Content-Type':'application/json'};
+  if(SESION && SESION.sesion) h['X-Sesion'] = SESION.sesion;
+  return h;
+}
+
+// ---------- Admin: usuarios, perfiles, menú y clientes ----------
+function tabsAdminDisponibles(){
+  const tabs=[];
+  if(puede('gestionar_usuarios')){ tabs.push('usuarios','perfiles','auditoria'); }
+  if(puede('editar_menu')) tabs.push('menu','comanda');
+  if(puede('gestionar_clientes')) tabs.push('clientes');
+  return tabs;
+}
+
+async function contenidoAuditoria(){
+  const data = await (await fetch('/api/auditoria')).json();
+  const filas = (data.eventos||[]).map(e=>`
+    <tr>
+      <td style="font-size:12px;white-space:nowrap">${(e.en||'').slice(0,16).replace('T',' ')}</td>
+      <td>${e.usuario||'—'}</td>
+      <td><span class="tag">${e.accion}</span></td>
+      <td style="font-size:12px;color:var(--muted)">${e.detalle||''}${e.pedido_id?` (#${e.pedido_id})`:''}</td>
+    </tr>`).join('');
+  return `<table class="tabla">${filas || '<tr><td style="color:var(--muted)">Sin eventos registrados todavía</td></tr>'}</table>`;
+}
+
+async function pantallaAdmin(tab){
+  const disponibles = tabsAdminDisponibles();
+  if(!disponibles.length){ toast('No tienes permisos de administración'); return; }
+  tab = (tab && disponibles.includes(tab)) ? tab : disponibles[0];
+  let contenido;
+  try{
+    if(tab==='usuarios') contenido = await contenidoUsuarios();
+    else if(tab==='perfiles') contenido = await contenidoPerfiles();
+    else if(tab==='auditoria') contenido = await contenidoAuditoria();
+    else if(tab==='menu') contenido = await contenidoMenu();
+    else if(tab==='comanda') contenido = await contenidoComanda();
+    else contenido = contenidoClientes();
+  }catch(e){ toast('No se pudo cargar'); return; }
+  const tabBtns = [];
+  if(puede('gestionar_usuarios')){
+    tabBtns.push(`<button class="${tab==='usuarios'?'on':''}" onclick="pantallaAdmin('usuarios')">Usuarios</button>`);
+    tabBtns.push(`<button class="${tab==='perfiles'?'on':''}" onclick="pantallaAdmin('perfiles')">Perfiles</button>`);
+    tabBtns.push(`<button class="${tab==='auditoria'?'on':''}" onclick="pantallaAdmin('auditoria')">Auditoría</button>`);
+  }
+  if(puede('editar_menu')) tabBtns.push(`<button class="${tab==='menu'?'on':''}" onclick="pantallaAdmin('menu')">Menú</button>`);
+  if(puede('editar_menu')) tabBtns.push(`<button class="${tab==='comanda'?'on':''}" onclick="pantallaAdmin('comanda')">🎨 Comanda</button>`);
+  if(puede('gestionar_clientes')) tabBtns.push(`<button class="${tab==='clientes'?'on':''}" onclick="pantallaAdmin('clientes')">Clientes</button>`);
+  $('#modalBody').innerHTML = `
+    <h3>⚙ Administración</h3>
+    <div class="seg" style="margin-bottom:10px;flex-wrap:wrap">${tabBtns.join('')}</div>
+    ${contenido}
+    <button class="btn ghost" onclick="cerrarModal()">Cerrar</button>`;
+  abrirModal();
+  if(tab==='menu') renderAdminMenuProductos();
+  if(tab==='comanda') renderEditorComanda();
+}
+
+async function contenidoUsuarios(){
+  const data = await (await fetch('/api/usuarios')).json();
+  const filas = (data.usuarios||[]).map(u=>`
+    <tr style="${u.activo?'':'opacity:.5'}">
+      <td>${u.nombre}${u.email?`<br><span style="color:var(--muted);font-size:11px">${u.email}</span>`:''}${u.activo?'':' <span class="tag">inactivo</span>'}</td>
+      <td>${u.perfil||'—'}</td>
+      <td style="text-align:right;white-space:nowrap">
+        <button class="mini" onclick="adminEditarUsuario(${u.id})">Editar</button>
+        <button class="mini" onclick="adminCambiarPin(${u.id})">PIN</button>
+        ${u.activo?`<button class="mini cancel" onclick="adminToggleUsuario(${u.id},false)">Desactivar</button>`
+                  :`<button class="mini go" onclick="adminToggleUsuario(${u.id},true)">Reactivar</button>`}
+      </td>
+    </tr>`).join('');
+  return `<table class="tabla">${filas || '<tr><td style="color:var(--muted)">Sin usuarios</td></tr>'}</table>
+    <button class="btn primary" onclick="adminCrearUsuarioModal()">+ Nuevo usuario</button>`;
+}
+
+async function contenidoPerfiles(){
+  const data = await (await fetch('/api/usuarios')).json();
+  const filas = (data.perfiles||[]).map(p=>`
+    <tr>
+      <td>${p.nombre}${p.es_admin?' <span class="tag">admin</span>':''}</td>
+      <td style="font-size:12px;color:var(--muted)">${(p.permisos||[]).join(', ')||'(sin permisos)'}</td>
+      <td style="text-align:right;white-space:nowrap">
+        <button class="mini" onclick="adminEditarPerfil(${p.id})">Editar</button>
+        <button class="mini cancel" onclick="adminBorrarPerfilConfirm(${p.id},'${(p.nombre||'').replace(/'/g,"\\'")}')">Borrar</button>
+      </td>
+    </tr>`).join('');
+  return `<table class="tabla">${filas || '<tr><td style="color:var(--muted)">Sin perfiles</td></tr>'}</table>
+    <button class="btn primary" onclick="adminCrearPerfilModal()">+ Nuevo perfil</button>`;
+}
+
+async function adminCrearUsuarioModal(){
+  const d = await (await fetch('/api/usuarios')).json();
+  formUsuario(null, d.perfiles||[]);
+}
+async function adminEditarUsuario(id){
+  const d = await (await fetch('/api/usuarios')).json();
+  formUsuario((d.usuarios||[]).find(x=>x.id===id), d.perfiles||[]);
+}
+function formUsuario(u, perfiles){
+  const editando = !!u;
+  $('#modalBody').innerHTML = `
+    <h3>${editando?'Editar usuario':'Nuevo usuario'}</h3>
+    <div class="lbl">Nombre</div>
+    <input id="fuNombre" value="${(u&&u.nombre||'').replace(/"/g,'&quot;')}" placeholder="Nombre">
+    <div class="lbl">Email (opcional)</div>
+    <input id="fuEmail" value="${(u&&u.email||'').replace(/"/g,'&quot;')}" placeholder="email@ejemplo.com">
+    <div class="lbl">Perfil</div>
+    <select id="fuPerfil" style="width:100%;padding:8px;border:1px solid var(--line);border-radius:8px;font-size:14px">
+      ${perfiles.map(p=>`<option value="${p.id}" ${u&&u.perfil_id===p.id?'selected':''}>${p.nombre}</option>`).join('')}
+    </select>
+    ${editando?'':`<div class="lbl">PIN inicial</div><input id="fuPin" type="password" inputmode="numeric" placeholder="PIN">`}
+    <div id="fuError" style="color:var(--bad);font-size:12px;font-weight:600;min-height:16px;margin-top:6px"></div>
+    <button class="btn primary" onclick="${editando?`guardarUsuario(${u.id})`:'crearUsuarioForm()'}">${editando?'Guardar':'Crear'}</button>
+    <button class="btn ghost" onclick="pantallaAdmin('usuarios')">Volver</button>`;
+  abrirModal();
+}
+async function crearUsuarioForm(){
+  const body={nombre:$('#fuNombre').value.trim(), email:$('#fuEmail').value.trim(),
+    perfil_id:+$('#fuPerfil').value, pin:$('#fuPin').value};
+  const r=await fetch('/api/usuarios',{method:'POST',headers:headersConUsuario(),body:JSON.stringify(body)});
+  if(!r.ok){ const e=await r.json(); $('#fuError').textContent=e.detail||'Error'; return; }
+  toast('Usuario creado'); pantallaAdmin('usuarios');
+}
+async function guardarUsuario(id){
+  const body={nombre:$('#fuNombre').value.trim(), email:$('#fuEmail').value.trim(), perfil_id:+$('#fuPerfil').value};
+  const r=await fetch('/api/usuarios/'+id,{method:'PUT',headers:headersConUsuario(),body:JSON.stringify(body)});
+  if(!r.ok){ const e=await r.json(); $('#fuError').textContent=e.detail||'Error'; return; }
+  toast('Usuario actualizado'); pantallaAdmin('usuarios');
+}
+function adminCambiarPin(id){
+  $('#modalBody').innerHTML = `<h3>Cambiar PIN</h3>
+    <div class="lbl">Nuevo PIN</div>
+    <input id="nuevoPinInput" type="password" inputmode="numeric" placeholder="Nuevo PIN">
+    <div id="pinError" style="color:var(--bad);font-size:12px;font-weight:600;min-height:16px;margin-top:6px"></div>
+    <button class="btn primary" onclick="guardarPin(${id})">Guardar</button>
+    <button class="btn ghost" onclick="pantallaAdmin('usuarios')">Volver</button>`;
+  abrirModal();
+}
+async function guardarPin(id){
+  const pin=$('#nuevoPinInput').value;
+  const r=await fetch('/api/usuarios/'+id+'/pin',{method:'POST',headers:headersConUsuario(),body:JSON.stringify({pin})});
+  if(!r.ok){ const e=await r.json(); $('#pinError').textContent=e.detail||'Error'; return; }
+  toast('PIN actualizado'); pantallaAdmin('usuarios');
+}
+async function adminToggleUsuario(id, activar){
+  const r = await fetch('/api/usuarios/'+id+'/'+(activar?'reactivar':'desactivar'),{method:'POST',headers:headersConUsuario()});
+  if(!r.ok){ const e=await r.json(); toast('Error: '+(e.detail||'')); return; }
+  pantallaAdmin('usuarios');
+}
+
+function adminCrearPerfilModal(){ return formPerfil(null); }
+async function adminEditarPerfil(id){
+  const d = await (await fetch('/api/usuarios')).json();
+  return formPerfil((d.perfiles||[]).find(x=>x.id===id));
+}
+async function formPerfil(p){
+  const editando = !!p;
+  let cat=[]; try{ cat=(await (await fetch('/api/permisos')).json()).permisos||[]; }catch(e){}
+  const actuales = new Set((p&&p.permisos)||[]);
+  $('#modalBody').innerHTML = `
+    <h3>${editando?'Editar perfil':'Nuevo perfil'}</h3>
+    <div class="lbl">Nombre</div>
+    <input id="fpNombre" value="${(p&&p.nombre||'').replace(/"/g,'&quot;')}" placeholder="Ej: Mesero 1">
+    <div class="lbl">Permisos</div>
+    <div class="opts" id="fpPermisos">
+      ${cat.map(perm=>`<div class="opt ${actuales.has(perm)?'sel':''}" data-p="${perm}">${perm.replace(/_/g,' ')}</div>`).join('')}
+    </div>
+    <div id="fpError" style="color:var(--bad);font-size:12px;font-weight:600;min-height:16px;margin-top:6px"></div>
+    <button class="btn primary" onclick="${editando?`guardarPerfil(${p.id})`:'crearPerfilForm()'}">${editando?'Guardar':'Crear'}</button>
+    <button class="btn ghost" onclick="pantallaAdmin('perfiles')">Volver</button>`;
+  $('#fpPermisos').querySelectorAll('.opt').forEach(o=>o.onclick=()=>o.classList.toggle('sel'));
+  abrirModal();
+}
+const permisosSeleccionados = () => [...document.querySelectorAll('#fpPermisos .opt.sel')].map(o=>o.dataset.p);
+async function crearPerfilForm(){
+  const body={nombre:$('#fpNombre').value.trim(), permisos:permisosSeleccionados()};
+  const r=await fetch('/api/perfiles',{method:'POST',headers:headersConUsuario(),body:JSON.stringify(body)});
+  if(!r.ok){ const e=await r.json(); $('#fpError').textContent=e.detail||'Error'; return; }
+  toast('Perfil creado'); pantallaAdmin('perfiles');
+}
+async function guardarPerfil(id){
+  const body={nombre:$('#fpNombre').value.trim(), permisos:permisosSeleccionados()};
+  const r=await fetch('/api/perfiles/'+id,{method:'PUT',headers:headersConUsuario(),body:JSON.stringify(body)});
+  if(!r.ok){ const e=await r.json(); $('#fpError').textContent=e.detail||'Error'; return; }
+  toast('Perfil actualizado'); pantallaAdmin('perfiles');
+}
+function adminBorrarPerfilConfirm(id, nombre){
+  $('#modalBody').innerHTML = `<h3>¿Borrar el perfil "${nombre}"?</h3>
+    <div class="lbl">Esta acción no se puede deshacer. Solo se puede borrar si ningún usuario lo tiene asignado.</div>
+    <button class="btn primary" style="background:var(--bad)" onclick="adminBorrarPerfil(${id})">Sí, borrar</button>
+    <button class="btn ghost" onclick="pantallaAdmin('perfiles')">Cancelar</button>`;
+  abrirModal();
+}
+async function adminBorrarPerfil(id){
+  const r = await fetch('/api/perfiles/'+id,{method:'DELETE',headers:headersConUsuario()});
+  if(!r.ok){ const e=await r.json(); toast('Error: '+(e.detail||'')); pantallaAdmin('perfiles'); return; }
+  toast('Perfil borrado'); pantallaAdmin('perfiles');
+}
+
+// ---------- Admin: menú (categorías, subcategorías/productos, combos) ----------
+let adminMenuCache = null;    // menu.json crudo cargado para editar (se recarga tras cada guardado)
+let adminMenuCatSel = null;   // nombre de la categoria seleccionada (NO indice: sobrevive a reordenar)
+let adminFiltroSin2x = false; // 03-ago-2026: filtro "mostrar solo sin 2x" en Editar precios
+
+function _swap(arr, i, j){ const t=arr[i]; arr[i]=arr[j]; arr[j]=t; }
+
+function getPath(obj, path){ return path.split('.').reduce((o,k)=> (o==null?o:o[k]), obj); }
+function setPath(obj, path, val){
+  const partes = path.split('.'); let o = obj;
+  for(let i=0;i<partes.length-1;i++){ if(o[partes[i]]==null) o[partes[i]]={}; o = o[partes[i]]; }
+  o[partes[partes.length-1]] = val;
+}
+// Que campos de precio tiene un producto, segun su forma (igual criterio que el
+// tarificador: precio simple, churrasco/mechada, XL/normal, tamanos, o porciones).
+function camposPrecioDe(p){
+  const out=[];
+  if('precio' in p){ out.push({path:'precio', label:'Precio'}); if('precio_2x' in p) out.push({path:'precio_2x', label:'Precio 2x'}); }
+  if('precio_churrasco' in p) out.push({path:'precio_churrasco', label:'Churrasco'});
+  if('precio_mechada' in p) out.push({path:'precio_mechada', label:'Mechada'});
+  if('xl_30cm' in p){ out.push({path:'xl_30cm.precio', label:'XL 30cm'}); if(p.xl_30cm && 'precio_2x' in p.xl_30cm) out.push({path:'xl_30cm.precio_2x', label:'XL 30cm 2x'}); }
+  if('normal_22cm' in p){ out.push({path:'normal_22cm.precio', label:'Normal 22cm'}); if(p.normal_22cm && 'precio_2x' in p.normal_22cm) out.push({path:'normal_22cm.precio_2x', label:'Normal 22cm 2x'}); }
+  if('individual' in p) out.push({path:'individual', label:'Individual'});
+  if('mediana' in p) out.push({path:'mediana', label:'Mediana'});
+  if('grande' in p) out.push({path:'grande', label:'Grande'});
+  if('precio_6' in p) out.push({path:'precio_6', label:'6u'});
+  if('precio_10' in p) out.push({path:'precio_10', label:'10u'});
+  return out;
+}
+
+async function contenidoMenu(){
+  if(!adminMenuCache) adminMenuCache = await (await fetch('/api/menu-edit')).json();
+  if(!adminMenuCache.categorias.some(c=>c.nombre===adminMenuCatSel))
+    adminMenuCatSel = (adminMenuCache.categorias[0]||{}).nombre || null;
+  const idx = adminMenuCache.categorias.findIndex(c=>c.nombre===adminMenuCatSel);
+  const r2x = _resumen2xDe(adminMenuCache.categorias);
+  return `
+    <div style="display:flex;align-items:center;gap:8px;margin-bottom:10px;padding:8px 10px;background:var(--chip);border-radius:8px">
+      <span style="width:10px;height:10px;border-radius:50%;flex:none;background:${r2x.con===r2x.total?'var(--ok)':(r2x.con===0?'var(--bad)':'var(--warn)')}"></span>
+      <span style="font-size:13px;font-weight:600">2× cargado: ${r2x.con} de ${r2x.total}</span>
+      ${r2x.confirmados ? `<span style="font-size:11px;color:var(--muted)">(+${r2x.confirmados} confirmados sin 2× a propósito)</span>` : ''}
+      <label style="margin-left:auto;display:flex;align-items:center;gap:5px;font-size:12px;color:var(--muted);cursor:pointer">
+        <input type="checkbox" ${adminFiltroSin2x?'checked':''} onchange="adminFiltroSin2x=this.checked;renderAdminMenuProductos()">
+        Solo sin 2×
+      </label>
+    </div>
+    <div class="lbl">Categoría</div>
+    <div style="display:flex;gap:6px;align-items:center;margin-bottom:6px">
+      <select id="admMenuCat" onchange="adminMenuCatSel=this.value;renderAdminMenuProductos()" style="flex:1;padding:8px;border:1px solid var(--line);border-radius:8px;font-size:14px">
+        ${adminMenuCache.categorias.map(c=>{
+          const rc = _resumen2xDe([c]);
+          const marca = rc.total===0 ? '' : (rc.con===rc.total ? ' ✓2×' : ` (${rc.con}/${rc.total} 2×)`);
+          return `<option value="${c.nombre.replace(/"/g,'&quot;')}" ${c.nombre===adminMenuCatSel?'selected':''}>${c.nombre}${marca}</option>`;
+        }).join('')}
+      </select>
+      <button class="mini" ${idx<=0?'disabled':''} onclick="adminMoverCategoria(-1)" title="Subir categoría">▲</button>
+      <button class="mini" ${idx<0||idx>=adminMenuCache.categorias.length-1?'disabled':''} onclick="adminMoverCategoria(1)" title="Bajar categoría">▼</button>
+    </div>
+    <div style="display:flex;gap:6px;margin-bottom:8px">
+      <button class="mini" style="flex:1" onclick="adminRenombrarCategoriaModal()">✏ Renombrar categoría</button>
+      <button class="mini cancel" style="flex:1" onclick="adminBorrarCategoriaConfirm()">🗑 Borrar categoría</button>
+    </div>
+    <div id="admMenuProds"></div>
+    <div style="display:flex;gap:6px;margin-top:8px">
+      <button class="btn ghost" style="margin-top:0;flex:1" onclick="adminAgregarProductoModal()">+ Subcategoría (producto)</button>
+      <button class="btn ghost" style="margin-top:0;flex:1" onclick="adminCrearComboModal()">+ Combo</button>
+    </div>
+    <button class="btn ghost" onclick="vincular2xModal()" style="border-color:var(--accent);color:var(--accent-d)">🔗 Vincular promos 2× (visual)</button>
+    <button class="btn ghost" onclick="adminAgregarCategoriaModal()">+ Categoría nueva</button>`;
+}
+
+const _LABEL_SLOT_2X = {'precio_2x': '2×', 'xl_30cm.precio_2x': '2× XL', 'normal_22cm.precio_2x': '2× Normal'};
+
+function renderAdminMenuProductos(){
+  const catIdx = adminMenuCache.categorias.findIndex(c=>c.nombre===adminMenuCatSel);
+  const box = $('#admMenuProds'); if(!box) return;
+  if(catIdx<0){ box.innerHTML=''; return; }
+  const cat = adminMenuCache.categorias[catIdx];
+  const n = (cat.productos||[]).length;
+  const productosVista = adminFiltroSin2x
+    ? (cat.productos||[]).map((p,pi)=>({p,pi})).filter(({p})=>_slots2x(p).some(s=>!s.tiene && !s.confirmado))
+    : (cat.productos||[]).map((p,pi)=>({p,pi}));
+  box.innerHTML = productosVista.map(({p,pi})=>{
+    const campos = camposPrecioDe(p);
+    const slots2x = _slots2x(p);
+    const inputs = campos.map(c=>{
+      const v = getPath(p, c.path);
+      const es2x = c.path.endsWith('precio_2x');
+      const punto = es2x
+        ? `<span style="width:7px;height:7px;border-radius:50%;flex:none;background:var(--ok)" title="2× cargado"></span>` : '';
+      return `<div style="display:flex;align-items:center;gap:4px">
+        ${punto}
+        <span style="font-size:11px;color:var(--muted);min-width:64px">${c.label}</span>
+        <input type="number" min="0" value="${v==null?'':v}" data-path="${c.path}" style="width:84px;border:1px solid var(--line);border-radius:6px;padding:4px 6px">
+      </div>`;
+    }).join('');
+    const faltantesReales = slots2x.filter(s=>!s.tiene && !s.confirmado);
+    const confirmado = slots2x.length>0 && slots2x[0].confirmado;
+    const botonesFaltan = faltantesReales.map(s => `<button type="button" class="mini" style="border-color:var(--bad);color:var(--bad)"
+        onclick="adminAgregarPrecio2x(${catIdx},${pi})" title="Agregar precio 2× para completarlo">
+        <span style="display:inline-block;width:7px;height:7px;border-radius:50%;border:1.5px solid var(--bad);margin-right:4px"></span>
+        + ${_LABEL_SLOT_2X[s.path] || '2×'}
+      </button>`).join('');
+    // 04-ago-2026 (Gonza): las Mechadas NO llevan 2x por decision de negocio, no porque
+    // se les haya olvidado -- sin esto quedaban marcadas "falta" para siempre (falso
+    // positivo). Confirmar apaga el semaforo rojo y las saca del filtro/contador; volver
+    // a tocar "+2x" (si algun dia se agrega el precio real) limpia la confirmacion sola.
+    const botonConfirmar = (faltantesReales.length>0) ? `<button type="button" class="mini"
+        style="border-color:var(--muted);color:var(--muted)" onclick="adminConfirmarSin2x(${catIdx},${pi})"
+        title="Esta subcategoría NO lleva 2× por decisión del negocio (no es que falte cargarlo)">
+        ✓ Confirmar sin 2×
+      </button>` : '';
+    const chipConfirmado = confirmado ? `<button type="button" class="mini"
+        style="border-color:var(--line);color:var(--muted);background:var(--chip)"
+        onclick="adminConfirmarSin2x(${catIdx},${pi},true)" title="Clic para revertir">
+        <span style="display:inline-block;width:7px;height:7px;border-radius:50%;background:var(--muted);margin-right:4px"></span>
+        Sin 2× confirmado
+      </button>` : '';
+    const comboInfo = p.combo ? `<div style="font-size:11px;color:var(--accent-d);margin-top:2px">combo: ${p.combo.map(c=>c.producto).join(' + ')}</div>` : '';
+    return `<div class="item" style="margin-bottom:6px" id="prodCard_${catIdx}_${pi}">
+      <div class="item-main">
+        <div class="info">
+          <input data-nombre value="${(p.nombre||'').replace(/"/g,'&quot;')}" placeholder="Nombre (SKU)"
+            style="font-weight:600;font-size:14px;border:1px solid var(--line);border-radius:6px;padding:5px 7px;width:100%">
+          ${comboInfo}
+        </div>
+        <button class="mini" ${pi===0?'disabled':''} onclick="adminMoverProducto(${catIdx},${pi},-1)" title="Subir">▲</button>
+        <button class="mini" ${pi>=n-1?'disabled':''} onclick="adminMoverProducto(${catIdx},${pi},1)" title="Bajar">▼</button>
+      </div>
+      <div style="display:flex;flex-wrap:wrap;gap:8px;margin-top:6px">${inputs || '<span style="font-size:12px;color:var(--muted)">sin precio editable aquí</span>'}${botonesFaltan}${botonConfirmar}${chipConfirmado}</div>
+      <div style="display:flex;gap:6px;margin-top:6px">
+        <button class="mini go" onclick="adminGuardarProducto(${catIdx},${pi})">Guardar</button>
+        <button class="mini cancel" onclick="adminQuitarProductoConfirm(${catIdx},${pi},'${(p.nombre||'').replace(/'/g,"\\'")}')">Quitar</button>
+      </div>
+    </div>`;
+  }).join('') || (adminFiltroSin2x
+    ? '<div class="vacio">Ninguna subcategoría de esta categoría le falta el 2×. 🎉</div>'
+    : '<div class="vacio">Sin subcategorías en esta categoría todavía.</div>');
+}
+
+// Cascada de nombre: si se renombra una categoria o un producto, cualquier COMBO
+// que lo referencie por nombre (en cualquier categoria) se actualiza junto con el
+// cambio -- si no, el guardado se rechazaria en el servidor (Tarificador valida que
+// los componentes de combo existan) y el admin veria un error sin saber por que.
+function adminRenombrarProductoEnCombos(catNombre, viejoNombre, nuevoNombre){
+  adminMenuCache.categorias.forEach(c=>(c.productos||[]).forEach(pr=>{
+    (pr.combo||[]).forEach(comp=>{
+      if(comp.categoria===catNombre && comp.producto===viejoNombre) comp.producto=nuevoNombre;
+    });
+  }));
+}
+function adminRenombrarCategoriaEnCombos(viejoNombre, nuevoNombre){
+  adminMenuCache.categorias.forEach(c=>(c.productos||[]).forEach(pr=>{
+    (pr.combo||[]).forEach(comp=>{
+      if(comp.categoria===viejoNombre) comp.categoria=nuevoNombre;
+    });
+  }));
+}
+
+async function adminMoverCategoria(dir){
+  const arr = adminMenuCache.categorias;
+  const idx = arr.findIndex(c=>c.nombre===adminMenuCatSel);
+  const dest = idx+dir;
+  if(idx<0 || dest<0 || dest>=arr.length) return;
+  _swap(arr, idx, dest);
+  await guardarMenuCompleto();
+  await pantallaAdmin('menu');
+}
+async function adminMoverProducto(catIdx, prodIdx, dir){
+  const arr = adminMenuCache.categorias[catIdx].productos;
+  const dest = prodIdx+dir;
+  if(dest<0 || dest>=arr.length) return;
+  _swap(arr, prodIdx, dest);
+  await guardarMenuCompleto();
+  renderAdminMenuProductos();
+}
+
+function adminRenombrarCategoriaModal(){
+  const cat = adminMenuCache.categorias.find(c=>c.nombre===adminMenuCatSel);
+  if(!cat) return;
+  $('#modalBody').innerHTML = `<h3>Renombrar categoría</h3>
+    <div class="lbl">Nombre actual: ${cat.nombre}</div>
+    <input id="rcNombre" value="${cat.nombre.replace(/"/g,'&quot;')}" placeholder="Nuevo nombre">
+    <div id="rcError" style="color:var(--bad);font-size:12px;font-weight:600;min-height:16px;margin-top:6px"></div>
+    <button class="btn primary" onclick="adminRenombrarCategoria()">Guardar</button>
+    <button class="btn ghost" onclick="pantallaAdmin('menu')">Cancelar</button>`;
+  abrirModal();
+}
+async function adminRenombrarCategoria(){
+  const cat = adminMenuCache.categorias.find(c=>c.nombre===adminMenuCatSel);
+  const nuevo = ($('#rcNombre').value||'').trim();
+  if(!nuevo){ $('#rcError').textContent='Ponle un nombre'; return; }
+  if(adminMenuCache.categorias.some(c=>c!==cat && c.nombre===nuevo)){ $('#rcError').textContent='Ya existe una categoría con ese nombre'; return; }
+  adminRenombrarCategoriaEnCombos(cat.nombre, nuevo);
+  cat.nombre = nuevo;
+  adminMenuCatSel = nuevo;
+  const ok = await guardarMenuCompleto();
+  if(ok) await pantallaAdmin('menu'); else $('#rcError').textContent='No se pudo guardar';
+}
+
+function adminAgregarCategoriaModal(){
+  $('#modalBody').innerHTML = `<h3>Nueva categoría</h3>
+    <div class="lbl">Nombre</div>
+    <input id="acatNombre" placeholder="Ej: Postres">
+    <div id="acatError" style="color:var(--bad);font-size:12px;font-weight:600;min-height:16px;margin-top:6px"></div>
+    <button class="btn primary" onclick="adminAgregarCategoria()">Crear</button>
+    <button class="btn ghost" onclick="pantallaAdmin('menu')">Cancelar</button>`;
+  abrirModal();
+}
+async function adminAgregarCategoria(){
+  const nombre = ($('#acatNombre').value||'').trim();
+  if(!nombre){ $('#acatError').textContent='Ponle un nombre'; return; }
+  if(adminMenuCache.categorias.some(c=>c.nombre===nombre)){ $('#acatError').textContent='Ya existe esa categoría'; return; }
+  adminMenuCache.categorias.push({nombre, productos:[]});
+  adminMenuCatSel = nombre;
+  const ok = await guardarMenuCompleto();
+  if(ok) await pantallaAdmin('menu'); else $('#acatError').textContent='No se pudo guardar';
+}
+
+function adminBorrarCategoriaConfirm(){
+  const cat = adminMenuCache.categorias.find(c=>c.nombre===adminMenuCatSel);
+  if(!cat) return;
+  if(adminMenuCache.categorias.length<=1){ toast('No puedes borrar la única categoría que queda'); return; }
+  $('#modalBody').innerHTML = `<h3>¿Borrar la categoría "${cat.nombre}"?</h3>
+    <div class="lbl">Se borran también sus ${(cat.productos||[]).length} subcategoría(s)/producto(s). Si un combo de OTRA categoría usa un producto de esta, el cambio se va a rechazar. Queda un backup del menú anterior.</div>
+    <button class="btn primary" style="background:var(--bad)" onclick="adminBorrarCategoria()">Sí, borrar</button>
+    <button class="btn ghost" onclick="pantallaAdmin('menu')">Cancelar</button>`;
+  abrirModal();
+}
+async function adminBorrarCategoria(){
+  const idx = adminMenuCache.categorias.findIndex(c=>c.nombre===adminMenuCatSel);
+  if(idx<0) return;
+  adminMenuCache.categorias.splice(idx,1);
+  adminMenuCatSel = (adminMenuCache.categorias[0]||{}).nombre || null;
+  // si el server rechaza el cambio (ej: un combo de otra categoria la usa), guardarMenuCompleto()
+  // ya reemplaza adminMenuCache completo con el menu.json real desde el servidor -- no hay
+  // que revertir el splice a mano, se descartaria solo.
+  await guardarMenuCompleto();
+  await pantallaAdmin('menu');
+}
+
+async function refrescarMenuCliente(){
+  // el motor del server ya se recargo; el CLIENTE (pantalla de venta) tambien debe
+  // refrescar su copia de MENU para que los precios/productos nuevos se vean sin F5.
+  try{
+    MENU = await (await fetch('/api/menu')).json();
+    TRANS = MENU.transiciones;
+    renderCats(); renderProds();
+  }catch(e){}
+}
+
+async function guardarMenuCompleto(){
+  const r = await fetch('/api/menu-edit',{method:'POST',headers:headersConUsuario(),body:JSON.stringify({menu:adminMenuCache})});
+  if(!r.ok){
+    const e = await r.json().catch(()=>({}));
+    toast('Error: '+(e.detail||'no se pudo guardar'));
+    adminMenuCache = await (await fetch('/api/menu-edit')).json();   // descarta el cambio local invalido
+    return false;
+  }
+  toast('Menú actualizado');
+  await refrescarMenuCliente();
+  return true;
+}
+
+// ---------- Vinculador visual de promos 2x (07-jul-2026) ----------
+// Administra el campo `grupo` del menu, que enlaza productos DISTINTOS para la promo 2x
+// cruzada (el Italiano y sus armados, Completo+Dinamico, etc.). Se tocan los productos y
+// los que comparten grupo se pintan del mismo color -> "vincular en vivo y visualmente".
+// El precio del par (precio_2x) se afina en "Editar precios" (que ya lo expone por producto
+// y por variante); aca solo se ASEGURA que el campo exista (placeholder = precio x2, que NO
+// regala nada) para que el editor lo muestre y el motor pueda cobrarlo. Resuelve ademas el
+// caso de revincular un SKU que se borro y se recreo. Persiste con guardarMenuCompleto
+// (/api/menu-edit, que valida el menu con el Tarificador antes de escribir).
+const COLORES_2X = ["#1D9E75","#BA7517","#7F77DD","#D85A30","#378ADD","#D4537E","#3B6D11"];
+let _v2xSel = new Set();
+function _catSel2x(){ return adminMenuCache.categorias.find(c=>c.nombre===adminMenuCatSel); }
+function _slug2x(s){ return (s||'').toLowerCase().normalize('NFD').replace(/[^a-z0-9]+/g,'_').replace(/^_|_$/g,''); }
+function _coloresDeGrupos(cat){
+  const orden=[]; (cat.productos||[]).forEach(p=>{ if(p.grupo && orden.indexOf(p.grupo)<0) orden.push(p.grupo); });
+  const map={}; orden.forEach((g,i)=>map[g]=COLORES_2X[i%COLORES_2X.length]); return map;
+}
+function _soporta2x(p){ return ('precio' in p) || (p.xl_30cm && typeof p.xl_30cm==='object') || (p.normal_22cm && typeof p.normal_22cm==='object'); }
+function _info2x(p){   // precio unitario base + precio del par si esta CONFIGURADO (no placeholder)
+  if('precio' in p){ const u=+p.precio||0, par=(p.precio_2x==null)?null:+p.precio_2x; return {u, par, conf: par!=null && par < u*2}; }
+  let u=null, par=null, conf=false;
+  ['xl_30cm','normal_22cm'].forEach(v=>{ if(p[v]&&typeof p[v]==='object'){ const uu=+p[v].precio||0; if(u==null)u=uu; if(p[v].precio_2x!=null){ par=+p[v].precio_2x; if(par<uu*2) conf=true; } } });
+  return {u, par, conf};
+}
+function _asegurarPrecio2x(p){   // crea el campo precio_2x si falta, en placeholder seguro (x2, sin descuento)
+  if('precio' in p){ if(p.precio_2x==null) p.precio_2x=(+p.precio||0)*2; return; }
+  ['xl_30cm','normal_22cm'].forEach(v=>{ if(p[v]&&typeof p[v]==='object' && p[v].precio_2x==null) p[v].precio_2x=(+p[v].precio||0)*2; });
+}
+
+// ---------- Semáforo + contador + filtro del 2x en "Editar precios" (03-ago-2026,
+// pedido de Gonza). "Cargado" = existe el campo precio_2x, sin importar si el
+// descuento es real -- las Mechadas NO lo tienen a propósito (confirmado por
+// Christian), así que "existe" es la pregunta correcta acá. Distinto del
+// _info2x().conf de arriba, que además exige un descuento real y es para el
+// vinculador visual, no para este contador.
+//
+// `sin_2x_confirmado` (booleano, a nivel de producto): Gonza marcó que un producto
+// SIN 2x sea un falso positivo (Mechadas hoy) para siempre, hasta que alguien lo
+// desmarque -- sin esto, el filtro/semaforo lo mostraria como "falta" para siempre,
+// aunque la decision de no tener 2x ya este tomada.
+function _slots2x(p){   // un slot por cada precio que ACEPTA promo 2x (1 o 2 por producto)
+  if(!_soporta2x(p)) return [];
+  const confirmado = p.sin_2x_confirmado === true;
+  if('precio' in p) return [{path: 'precio_2x', tiene: p.precio_2x != null, confirmado}];
+  const out = [];
+  ['xl_30cm', 'normal_22cm'].forEach(v => {
+    if(p[v] && typeof p[v] === 'object')
+      out.push({path: v + '.precio_2x', tiene: p[v].precio_2x != null, confirmado});
+  });
+  return out;
+}
+function _resumen2xDe(categorias){
+  let con = 0, total = 0, confirmados = 0;
+  (categorias || []).forEach(cat => (cat.productos || []).forEach(p =>
+    _slots2x(p).forEach(s => {
+      if(s.confirmado){ confirmados++; return; }   // no cuenta ni en contra ni a favor
+      total++; if(s.tiene) con++;
+    })));
+  return {con, total, confirmados};
+}
+async function adminAgregarPrecio2x(catIdx, prodIdx){
+  const p = adminMenuCache.categorias[catIdx].productos[prodIdx];
+  _asegurarPrecio2x(p);
+  delete p.sin_2x_confirmado;   // si algun dia se carga el precio real, la confirmacion vieja queda obsoleta
+  renderAdminMenuProductos();
+}
+// 04-ago-2026 (Gonza): marca/desmarca un producto como "sin 2x a proposito" (no un
+// olvido) -- persiste de una, como el resto de las acciones de un clic de esta pantalla
+// (mover categoria/producto). `quitar=true` revierte la confirmacion.
+async function adminConfirmarSin2x(catIdx, prodIdx, quitar){
+  const p = adminMenuCache.categorias[catIdx].productos[prodIdx];
+  if(quitar) delete p.sin_2x_confirmado; else p.sin_2x_confirmado = true;
+  const ok = await guardarMenuCompleto();
+  if(!ok) return;
+  await pantallaAdmin('menu');
+}
+function vincular2xModal(){ _v2xSel=new Set(); _render2x(); abrirModal(); }
+function _render2x(){
+  const cat=_catSel2x(); if(!cat) return;
+  const colores=_coloresDeGrupos(cat);
+  const chips=(cat.productos||[]).map((p,i)=>{
+    if(!_soporta2x(p)) return '';
+    const col=p.grupo?colores[p.grupo]:null, sel=_v2xSel.has(i), info=_info2x(p);
+    const par = p.grupo ? (info.conf?`par $${(info.par||0).toLocaleString('es-CL')}`:`<span style="color:var(--bad)">definí el par en Editar precios</span>`) : '';
+    return `<button type="button" onclick="_tog2x(${i})" style="text-align:left;cursor:pointer;padding:9px 10px;border-radius:10px;background:var(--panel);color:var(--ink);border:${col?('2px solid '+col):'1px solid var(--line)'};outline:${sel?'3px solid var(--accent)':'none'};outline-offset:1px;display:flex;flex-direction:column;gap:2px">
+      <span style="display:flex;align-items:center;gap:6px">
+        <span style="width:9px;height:9px;border-radius:50%;flex:none;${col?('background:'+col):'border:1.5px solid var(--muted)'}"></span>
+        <span style="font-weight:600;font-size:14px">${p.nombre}</span>
+        ${col?`<span style="margin-left:auto;font-size:11px;font-weight:700;color:${col};border:1px solid ${col};border-radius:6px;padding:0 5px">2×</span>`:''}
+      </span>
+      <span style="font-size:12px;color:var(--muted)">$${(info.u||0).toLocaleString('es-CL')}${par?' · '+par:''}</span>
+    </button>`;
+  }).join('');
+  const n=_v2xSel.size;
+  $('#modalBody').innerHTML = `<h3>🔗 Vincular promos 2× — ${cat.nombre}</h3>
+    <div class="lbl">Tocá dos o más productos y presioná “Vincular en 2×”. Los que comparten color se emparejan entre sí en la promo. El precio del par se afina en “Editar precios”.</div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin:8px 0;max-height:44vh;overflow:auto">${chips||'<span class="lbl">Esta categoría no tiene productos con promo 2× aplicable.</span>'}</div>
+    <div style="display:flex;gap:6px;align-items:center;flex-wrap:wrap;border-top:1px solid var(--line);padding-top:8px">
+      <span class="lbl" style="flex:1;margin:0">${n?n+' seleccionado'+(n>1?'s':''):'Nada seleccionado'}</span>
+      <button class="mini go" ${n<1?'disabled':''} onclick="_vincular2x()">🔗 Vincular en 2×</button>
+      <button class="mini cancel" ${n<1?'disabled':''} onclick="_separar2x()">Separar</button>
+    </div>
+    <button class="btn primary" onclick="_guardar2x()">Guardar cambios</button>
+    <button class="btn ghost" onclick="_cerrar2x()">Cerrar sin guardar</button>`;
+}
+function _tog2x(i){ _v2xSel.has(i)?_v2xSel.delete(i):_v2xSel.add(i); _render2x(); }
+function _vincular2x(){
+  const cat=_catSel2x(), idxs=[..._v2xSel];
+  if(idxs.length<1) return;
+  let g=null; idxs.forEach(i=>{ if(cat.productos[i].grupo && !g) g=cat.productos[i].grupo; });
+  if(!g) g='g2x_'+_slug2x(cat.nombre)+'_'+Date.now().toString(36);
+  idxs.forEach(i=>{ const p=cat.productos[i]; p.grupo=g; p.promo_2x=true; _asegurarPrecio2x(p); });
+  _v2xSel=new Set(); _render2x();
+}
+function _separar2x(){
+  const cat=_catSel2x();
+  [..._v2xSel].forEach(i=>{ delete cat.productos[i].grupo; });
+  _v2xSel=new Set(); _render2x();
+}
+async function _guardar2x(){ if(await guardarMenuCompleto()){ cerrarModal(); renderAdminMenuProductos(); } }
+async function _cerrar2x(){ adminMenuCache=await (await fetch('/api/menu-edit')).json(); cerrarModal(); renderAdminMenuProductos(); }
+
+// ---------- Editor de comanda (07-jul-2026): Christian disena su comanda ----------
+// Reusa el motor tema-driven de impresora.py. El navegador SOLO edita el "tema"
+// (orden/estilo de bloques + globales) y lo guarda; el preview muestra las LINEAS
+// reales del pedido demo (que las calcula el backend en _bloque_lineas) con el estilo
+// elegido, asi no hay que re-implementar la logica de contenido aca. La impresion de
+// prueba manda a la termica los bytes ESC/POS reales del tema (fidelidad total).
+let _temaC=null, _lineasC={}, _etiqC={}, _selC=null, _anchoC=48, _dragC=null;
+const _EC_TAM={n:'Normal', da:'Grande', dd:'Extra grande'};
+const _EC_PX={n:12, da:15, dd:18};
+
+async function contenidoComanda(){
+  const d = await (await fetch('/api/tema-comanda')).json();
+  _temaC=d.tema; _lineasC=d.lineas||{}; _etiqC=d.etiquetas||{}; _anchoC=d.ancho||48;
+  _selC=(_temaC.bloques[0]||{}).id;
+  return `<div id="ecRoot"></div>`;
+}
+function _ecBl(id){ return _temaC.bloques.find(b=>b.id===id); }
+
+function renderEditorComanda(){
+  const root=document.getElementById('ecRoot'); if(!root||!_temaC) return;
+  const lista=_temaC.bloques.map((b,i)=>`
+    <div class="ecblk${b.id===_selC?' sel':''}" draggable="true" data-i="${i}" data-id="${b.id}"
+      style="display:flex;align-items:center;gap:8px;padding:8px 9px;border:1px solid var(--line);border-radius:9px;margin-bottom:5px;background:${b.id===_selC?'var(--chip)':'#fff'};${b.on?'':'opacity:.5;'}cursor:grab">
+      <span style="color:var(--muted)">⠿</span>
+      <span style="flex:1;font-size:13px;font-weight:600">${_etiqC[b.id]||b.id}</span>
+      <button class="mini" onclick="ecToggle('${b.id}')" title="Mostrar/ocultar">${b.on?'👁':'🚫'}</button>
+      <button class="mini" onclick="ecMover('${b.id}',-1)">▲</button>
+      <button class="mini" onclick="ecMover('${b.id}',1)">▼</button>
+    </div>`).join('');
+  const b=_ecBl(_selC)||{};
+  const props=`<div style="background:var(--chip);border-radius:9px;padding:10px;margin:8px 0">
+    <div style="font-weight:700;font-size:13px;margin-bottom:7px">Bloque: ${_etiqC[_selC]||_selC}</div>
+    <div class="lbl">Tamaño de letra</div>
+    <div class="seg">${['n','da','dd'].map(v=>`<button class="${b.tam===v?'on':''}" onclick="ecSetTam('${v}')">${_EC_TAM[v]}</button>`).join('')}</div>
+    <div style="display:flex;gap:6px;margin-top:8px;align-items:center">
+      <button class="mini ${b.bold?'go':''}" onclick="ecSetBold()">Negrita</button>
+      <div class="seg">${[['l','Izquierda'],['c','Centrado']].map(x=>`<button class="${b.al===x[0]?'on':''}" onclick="ecSetAl('${x[0]}')">${x[1]}</button>`).join('')}</div>
+    </div></div>`;
+  const g=_temaC;
+  const glob=`<div style="background:var(--chip);border-radius:9px;padding:10px;margin:8px 0">
+    <div style="font-weight:700;font-size:13px;margin-bottom:7px">Ajustes del ticket</div>
+    <div style="display:flex;gap:6px;align-items:center;flex-wrap:wrap;margin-bottom:8px">
+      <button class="mini ${g.mayus?'go':''}" onclick="ecSetGlob('mayus',${!g.mayus})">MAYÚSCULAS</button>
+      <span class="lbl" style="margin:0 0 0 4px">Separar bloques:</span>
+      <div class="seg">${[['guiones','Líneas'],['blanco','Espacio'],['nada','Nada']].map(x=>`<button class="${g.separador===x[0]?'on':''}" onclick="ecSetGlob('separador','${x[0]}')">${x[1]}</button>`).join('')}</div>
+    </div>
+    <div style="display:flex;align-items:center;gap:8px;margin:5px 0"><span class="lbl" style="min-width:110px;margin:0">Interlineado</span><input type="range" min="1" max="2" step="0.1" value="${g.inter}" oninput="ecSetGlob('inter',+this.value)" style="flex:1"><span style="font-size:12px;min-width:24px">${(+g.inter).toFixed(1)}</span></div>
+    <div style="display:flex;align-items:center;gap:8px;margin:5px 0"><span class="lbl" style="min-width:110px;margin:0">Entre letras</span><input type="range" min="0" max="4" step="1" value="${g.track}" oninput="ecSetGlob('track',+this.value)" style="flex:1"><span style="font-size:12px;min-width:24px">${g.track}</span></div>
+    <div style="display:flex;align-items:center;gap:8px;margin:5px 0"><span class="lbl" style="min-width:110px;margin:0">Espacio extra</span><input type="range" min="0" max="3" step="1" value="${g.sep}" oninput="ecSetGlob('sep',+this.value)" style="flex:1"><span style="font-size:12px;min-width:24px">${g.sep}</span></div></div>`;
+  const botones=`<div style="display:flex;gap:6px;flex-wrap:wrap;margin-top:8px">
+    <button class="btn primary" style="flex:1;min-width:130px" onclick="ecGuardar()">Guardar diseño</button>
+    <button class="btn ghost" onclick="ecImprimirPrueba()">🖨 Imprimir prueba</button>
+    <button class="btn ghost" onclick="ecReset()">Descartar cambios</button></div>`;
+  root.innerHTML=`<div class="lbl">Arrastrá o usá ▲▼ para reordenar · tocá un bloque para editarlo</div>
+    ${lista}${props}${glob}
+    <div class="lbl">Vista del ticket (aprox. — la impresión real la valida "Imprimir prueba")</div>
+    ${ecPreviewHTML()}${botones}`;
+  [...root.querySelectorAll('.ecblk')].forEach(el=>{
+    el.addEventListener('click',e=>{ if(e.target.closest('button'))return; _selC=el.dataset.id; renderEditorComanda(); });
+    el.addEventListener('dragstart',()=>{_dragC=+el.dataset.i; el.style.opacity='.4';});
+    el.addEventListener('dragend',()=>{el.style.opacity='';});
+    el.addEventListener('dragover',e=>e.preventDefault());
+    el.addEventListener('drop',e=>{e.preventDefault(); const to=+el.dataset.i; if(_dragC==null||_dragC===to)return; const m=_temaC.bloques.splice(_dragC,1)[0]; _temaC.bloques.splice(to,0,m); _dragC=null; renderEditorComanda();});
+  });
+}
+function ecPreviewHTML(){
+  const cols=(_anchoC===48?44:30), w=cols+'ch';
+  const sep=_temaC.separador==='guiones'?`<div style="white-space:pre">${'-'.repeat(cols)}</div>`:(_temaC.separador==='blanco'?'<div>&nbsp;</div>':'');
+  const parts=_temaC.bloques.filter(b=>b.on).map(b=>{
+    const lineas=b.id==='qr'?['[ QR WhatsApp ]']:(_lineasC[b.id]||[]);
+    if(!lineas.length) return null;
+    const px=_EC_PX[b.tam]||12;
+    const st=`font-size:${px}px;font-weight:${b.bold||b.tam!=='n'?'700':'400'};text-align:${b.al==='c'?'center':'left'}`;
+    return lineas.map(t=>`<div style="white-space:pre;${st}">${((t||'')+'').replace(/</g,'&lt;')||'&nbsp;'}</div>`).join('');
+  }).filter(Boolean);
+  const spacer=_temaC.sep?`<div style="height:${_temaC.sep*6}px"></div>`:'';
+  return `<div style="background:#fff;color:#111;border:1px solid var(--line);border-radius:8px;padding:12px;font-family:ui-monospace,Menlo,Consolas,monospace;width:${w};max-width:100%;overflow-x:auto;line-height:${_temaC.inter};letter-spacing:${_temaC.track}px;text-transform:${_temaC.mayus?'uppercase':'none'}">${parts.join(sep+spacer)}</div>`;
+}
+function ecToggle(id){ const b=_ecBl(id); if(b){b.on=!b.on; renderEditorComanda();} }
+function ecMover(id,dir){ const a=_temaC.bloques, i=a.findIndex(b=>b.id===id), j=i+dir; if(i<0||j<0||j>=a.length)return; [a[i],a[j]]=[a[j],a[i]]; renderEditorComanda(); }
+function ecSetTam(v){ const b=_ecBl(_selC); if(b){b.tam=v; renderEditorComanda();} }
+function ecSetBold(){ const b=_ecBl(_selC); if(b){b.bold=!b.bold; renderEditorComanda();} }
+function ecSetAl(v){ const b=_ecBl(_selC); if(b){b.al=v; renderEditorComanda();} }
+function ecSetGlob(k,v){ _temaC[k]=v; renderEditorComanda(); }
+async function ecGuardar(){
+  const r=await fetch('/api/tema-comanda',{method:'POST',headers:headersConUsuario(),body:JSON.stringify({tema:_temaC})});
+  toast(r.ok?'Diseño de comanda guardado':'Error al guardar');
+}
+async function ecImprimirPrueba(){
+  toast('Imprimiendo prueba…');
+  let r; try{ r=await fetch('/api/imprimir/prueba-comanda',{method:'POST',headers:headersConUsuario(),body:JSON.stringify({tema:_temaC})}); }catch(e){ r=null; }
+  if(r&&r.ok){ const d=await r.json(); toast('Prueba enviada a '+d.impresora); }
+  else { const e=r?await r.json().catch(()=>({})):{}; toast('Error de impresión: '+(e.detail||'sin conexión')); }
+}
+async function ecReset(){
+  const d=await (await fetch('/api/tema-comanda')).json();
+  _temaC=d.tema; _selC=(_temaC.bloques[0]||{}).id; renderEditorComanda();
+  toast('Volvió al diseño guardado');
+}
+
+async function adminGuardarProducto(catIdx, prodIdx){
+  const cat = adminMenuCache.categorias[catIdx];
+  const p = cat.productos[prodIdx];
+  const card = document.getElementById('prodCard_'+catIdx+'_'+prodIdx);
+  const nuevoNombre = (card.querySelector('input[data-nombre]').value||'').trim();
+  if(!nuevoNombre){ toast('El nombre (SKU) no puede quedar vacío'); return; }
+  if(nuevoNombre !== p.nombre){
+    if(cat.productos.some((x,i)=>i!==prodIdx && x.nombre===nuevoNombre)){
+      toast('Ya hay otra subcategoría con ese nombre en esta categoría'); return;
+    }
+    adminRenombrarProductoEnCombos(cat.nombre, p.nombre, nuevoNombre);   // punto F: cascada a combos
+    p.nombre = nuevoNombre;
+  }
+  card.querySelectorAll('input[data-path]').forEach(inp=>{
+    setPath(p, inp.dataset.path, inp.value===''?null:+inp.value);
+  });
+  await guardarMenuCompleto();
+  renderAdminMenuProductos();
+}
+
+function adminQuitarProductoConfirm(catIdx, prodIdx, nombre){
+  $('#modalBody').innerHTML = `<h3>¿Quitar "${nombre}" del menú?</h3>
+    <div class="lbl">Queda un backup del menú anterior por si hay que deshacerlo. Si otro combo usa este producto, se va a rechazar el cambio.</div>
+    <button class="btn primary" style="background:var(--bad)" onclick="adminQuitarProducto(${catIdx},${prodIdx})">Sí, quitar</button>
+    <button class="btn ghost" onclick="pantallaAdmin('menu')">Cancelar</button>`;
+  abrirModal();
+}
+async function adminQuitarProducto(catIdx, prodIdx){
+  adminMenuCache.categorias[catIdx].productos.splice(prodIdx, 1);
+  await guardarMenuCompleto();
+  await pantallaAdmin('menu');
+}
+
+function adminAgregarProductoModal(){
+  $('#modalBody').innerHTML = `<h3>Agregar subcategoría (producto)</h3>
+    <div class="lbl">Categoría</div>
+    <select id="apCat" style="width:100%;padding:8px;border:1px solid var(--line);border-radius:8px">
+      ${adminMenuCache.categorias.map(c=>`<option value="${c.nombre.replace(/"/g,'&quot;')}" ${c.nombre===adminMenuCatSel?'selected':''}>${c.nombre}</option>`).join('')}
+    </select>
+    <div class="lbl">Nombre</div>
+    <input id="apNombre" placeholder="Ej: Papas con queso">
+    <div class="lbl">Precio</div>
+    <input id="apPrecio" type="number" min="0" placeholder="Precio">
+    <div id="apError" style="color:var(--bad);font-size:12px;font-weight:600;min-height:16px;margin-top:6px"></div>
+    <button class="btn primary" onclick="adminAgregarProducto()">Agregar</button>
+    <button class="btn ghost" onclick="pantallaAdmin('menu')">Cancelar</button>`;
+  abrirModal();
+}
+async function adminAgregarProducto(){
+  const nombre = $('#apNombre').value.trim(), precio = +$('#apPrecio').value || 0, catNombre = $('#apCat').value;
+  if(!nombre){ $('#apError').textContent = 'Ponle un nombre'; return; }
+  const cat = adminMenuCache.categorias.find(c=>c.nombre===catNombre);
+  if(cat.productos.some(p=>p.nombre===nombre)){ $('#apError').textContent = 'Ya existe esa subcategoría en esta categoría'; return; }
+  cat.productos.push({nombre, precio});
+  adminMenuCatSel = catNombre;
+  const ok = await guardarMenuCompleto();
+  if(ok) await pantallaAdmin('menu'); else $('#apError').textContent = 'No se pudo guardar';
+}
+
+function primerProductoDe(catNombre){
+  const cat = adminMenuCache.categorias.find(c=>c.nombre===catNombre);
+  const prods = (cat && cat.productos) || [];
+  return prods.length ? prods[0].nombre : '';
+}
+let comboComponentes = [];   // [{categoria,producto}] mientras se arma el combo
+function adminCrearComboModal(){
+  comboComponentes = [];
+  renderFormCombo();
+}
+function estadoActualCombo(){
+  // Nombre/precio/categoria ya tipeados, para no perderlos cuando se re-dibuja el
+  // formulario al agregar/quitar/cambiar un componente.
+  return {
+    nombre: ($('#ccNombre') && $('#ccNombre').value) || '',
+    precio: ($('#ccPrecio') && $('#ccPrecio').value) || '',
+    catIdx: $('#ccCat') ? +$('#ccCat').value : 0,
+  };
+}
+function renderFormCombo(estadoPrevio){
+  estadoPrevio = estadoPrevio || {};
+  const cats = adminMenuCache.categorias;
+  const opcionesProducto = catNombre => {
+    const cat = cats.find(c=>c.nombre===catNombre) || cats[0];
+    return (cat.productos||[]).map(p=>`<option value="${p.nombre}">${p.nombre}</option>`).join('');
+  };
+  $('#modalBody').innerHTML = `<h3>Crear combo</h3>
+    <div class="lbl">Categoría donde va a aparecer</div>
+    <select id="ccCat" style="width:100%;padding:8px;border:1px solid var(--line);border-radius:8px">
+      ${cats.map((c,i)=>`<option value="${i}" ${estadoPrevio.catIdx===i?'selected':''}>${c.nombre}</option>`).join('')}
+    </select>
+    <div class="lbl">Nombre del combo</div>
+    <input id="ccNombre" value="${(estadoPrevio.nombre||'').replace(/"/g,'&quot;')}" placeholder="Ej: Box 1 + Bebida">
+    <div class="lbl">Precio del combo (fijo, no suma los componentes)</div>
+    <input id="ccPrecio" type="number" min="0" value="${estadoPrevio.precio||''}" placeholder="Precio">
+    <div class="lbl">Componentes</div>
+    <div id="ccComponentes">
+      ${comboComponentes.map((cc,i)=>`
+        <div style="display:flex;gap:6px;margin-bottom:6px;align-items:center">
+          <select onchange="comboComponentes[${i}].categoria=this.value;comboComponentes[${i}].producto=primerProductoDe(this.value);renderFormCombo(estadoActualCombo())" style="flex:1;padding:6px;border:1px solid var(--line);border-radius:6px">
+            ${cats.map(c=>`<option value="${c.nombre}" ${cc.categoria===c.nombre?'selected':''}>${c.nombre}</option>`).join('')}
+          </select>
+          <select onchange="comboComponentes[${i}].producto=this.value" style="flex:1;padding:6px;border:1px solid var(--line);border-radius:6px">
+            ${opcionesProducto(cc.categoria)}
+          </select>
+          <button class="x" onclick="comboComponentes.splice(${i},1);renderFormCombo(estadoActualCombo())">✕</button>
+        </div>`).join('')}
+    </div>
+    <button class="btn ghost" style="margin-top:0" onclick="comboComponentes.push({categoria:adminMenuCache.categorias[0].nombre,producto:primerProductoDe(adminMenuCache.categorias[0].nombre)});renderFormCombo(estadoActualCombo())">+ Agregar componente</button>
+    <div id="ccError" style="color:var(--bad);font-size:12px;font-weight:600;min-height:16px;margin-top:6px"></div>
+    <button class="btn primary" onclick="adminGuardarCombo()">Crear combo</button>
+    <button class="btn ghost" onclick="pantallaAdmin('menu')">Cancelar</button>`;
+  abrirModal();
+}
+async function adminGuardarCombo(){
+  const nombre = $('#ccNombre').value.trim(), precio = +$('#ccPrecio').value || 0, catIdx = +$('#ccCat').value;
+  if(!nombre){ $('#ccError').textContent = 'Ponle un nombre al combo'; return; }
+  if(!comboComponentes.length){ $('#ccError').textContent = 'Agrega al menos un componente'; return; }
+  adminMenuCache.categorias[catIdx].productos.push({
+    nombre, precio, combo: comboComponentes.map(c=>({categoria:c.categoria, producto:c.producto}))
+  });
+  const ok = await guardarMenuCompleto();
+  if(ok) await pantallaAdmin('menu'); else $('#ccError').textContent = 'No se pudo guardar (revisa los componentes)';
+}
+
+// ---------- Admin: clientes ----------
+function contenidoClientes(){
+  return `
+    <input id="admClienteQ" placeholder="Buscar por nombre o teléfono" oninput="adminBuscarClientes()"
+      style="width:100%;border:1px solid var(--line);border-radius:8px;padding:8px;margin-bottom:8px">
+    <div id="admClientesResultados"><div class="vacio">Escribe para buscar.</div></div>
+    <button class="btn ghost" onclick="adminEditarClienteModal(null)">+ Nuevo cliente</button>`;
+}
+let admClienteT;
+function adminBuscarClientes(){
+  clearTimeout(admClienteT);
+  admClienteT = setTimeout(async()=>{
+    const q = $('#admClienteQ').value.trim();
+    const box = $('#admClientesResultados'); if(!box) return;
+    if(q.length<2){ box.innerHTML='<div class="vacio">Escribe para buscar.</div>'; return; }
+    const dig = soloDigitos(q);
+    let clientes = [];
+    if(dig.length>=3){ try{ clientes = (await (await fetch('/api/clientes?telefono='+encodeURIComponent(dig))).json()).clientes||[]; }catch(e){} }
+    if(!clientes.length){ try{ clientes = (await (await fetch('/api/clientes?nombre='+encodeURIComponent(q))).json()).clientes||[]; }catch(e){} }
+    window._clientesAdmin = clientes;
+    box.innerHTML = clientes.length ? clientes.map((c,i)=>`
+      <div class="item" style="cursor:pointer" onclick="adminEditarClienteModal(_clientesAdmin[${i}])">
+        <div class="info"><div class="t">${(c.nombre||'').trim()||'(sin nombre)'}</div>
+          <div class="s">${c.telefono||'—'}${c.direccion?(' · '+c.direccion):''}</div></div>
+      </div>`).join('') : '<div class="vacio">Sin resultados.</div>';
+  }, 250);
+}
+function adminEditarClienteModal(c){
+  c = c || {telefono:'', nombre:'', direccion:''};
+  $('#modalBody').innerHTML = `<h3>${c.telefono?'Editar cliente':'Nuevo cliente'}</h3>
+    <div class="lbl">Teléfono${c.telefono?' (no se puede cambiar: es la llave del cliente)':''}</div>
+    <input id="acTel" value="${(c.telefono||'').replace(/"/g,'&quot;')}" inputmode="numeric" placeholder="9 dígitos" ${c.telefono?'disabled':''}>
+    <div class="lbl">Nombre</div>
+    <input id="acNombre" value="${(c.nombre||'').replace(/"/g,'&quot;')}" placeholder="Nombre del cliente">
+    <div class="lbl">Dirección</div>
+    <input id="acDireccion" value="${(c.direccion||'').replace(/"/g,'&quot;')}" placeholder="Dirección (opcional)">
+    <div id="acError" style="color:var(--bad);font-size:12px;font-weight:600;min-height:16px;margin-top:6px"></div>
+    <button class="btn primary" onclick="adminGuardarCliente()">Guardar</button>
+    <button class="btn ghost" onclick="pantallaAdmin('clientes')">Volver</button>`;
+  abrirModal();
+}
+async function adminGuardarCliente(){
+  const telefono = $('#acTel').value.trim(), nombre = $('#acNombre').value.trim(), direccion = $('#acDireccion').value.trim();
+  if(!telefono && !nombre){ $('#acError').textContent = 'Ponle al menos teléfono o nombre'; return; }
+  const r = await fetch('/api/clientes',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({telefono,nombre,direccion})});
+  if(!r.ok){ const e=await r.json().catch(()=>({})); $('#acError').textContent = e.detail||'Error'; return; }
+  toast('Cliente guardado'); pantallaAdmin('clientes');
+}
+
+// ---------- carga ----------
+async function init(){
+  MENU = await (await fetch('/api/menu')).json();
+  TRANS = MENU.transiciones;
+  $('#titulo').textContent = `POS ${MENU.local.nombre} — Cajero`;
+  const pg = $('#pagos');
+  pg.innerHTML = MENU.local.pago.map((m,i)=>`<button data-v="${m}" class="${i===0?'on':''}">${m}</button>`).join('');
+  formaPago = MENU.local.pago[0];
+  pg.querySelectorAll('button').forEach(b=>b.onclick=()=>{
+    formaPago=b.dataset.v; pg.querySelectorAll('button').forEach(x=>x.classList.toggle('on',x===b));
+    setPagoSimple(); renderPagoResumen(); updateVuelto(); });
+  renderCats(); renderProds(); cargarCola(); refrescarCaja(); setModalidad('local'); setTabMovil(0);
+  setInterval(()=>{ cargarCola(); refrescarCaja(); pollBot(); }, 4000);
+  setInterval(()=>$('#reloj').textContent = new Date().toLocaleTimeString('es-CL',{hour:'2-digit',minute:'2-digit'}), 1000);
+}
+const pesos = n => '$' + (n||0).toLocaleString('es-CL');
+const itemNotas = it => [it.armado, it.variedad, it.comentario].filter(Boolean).join(' · ');  // armado + sabor + comentario -> notas del item
+
+// ---------- pago combinado (varios metodos que suman el total) ----------
+function setPagoSimple(){ pagosUI=null; pagoConUI=null; }
+function renderPagoResumen(){
+  const r=$('#pagoMixtoResumen'); if(!r) return;
+  if(pagosUI && pagosUI.length){
+    r.style.display='block';
+    r.innerHTML = 'Pago dividido: ' + pagosUI.map(p=>`${p.metodo} ${pesos(p.monto)}`).join(' + ');
+  } else r.style.display='none';
+}
+function dividirPagoModal(){
+  if(!pedido.length){ toast('Primero agrega productos'); return; }
+  const metodos=(MENU.local.pago||[]), total=totalActual||0, montos={};
+  metodos.forEach(m=>montos[m]=0);
+  if(pagosUI) pagosUI.forEach(p=>{ montos[p.metodo]=(montos[p.metodo]||0)+p.monto; });
+  $('#modalBody').innerHTML = `<h3>Dividir pago — total ${pesos(total)}</h3>
+    <div class="lbl">Cuánto se paga con cada método. En efectivo, escribe lo que el cliente entrega — el vuelto se calcula solo.</div>
+    ${metodos.map(m=>`<div style="display:flex;align-items:center;gap:8px;margin:5px 0">
+      <span style="flex:1;text-transform:capitalize">${m}</span>
+      <input type="number" min="0" data-m="${m}" value="${montos[m]||''}" placeholder="0"
+        style="width:130px;text-align:right;border:1px solid var(--line);border-radius:8px;padding:7px"></div>`).join('')}
+    <div id="divEstado" class="descuadre"></div>
+    <div id="vueltoDiv" class="vuelto"></div>
+    <button class="btn primary" id="okDiv">Usar este reparto</button>
+    <button class="btn ghost" onclick="setPagoSimple();renderPagoResumen();cerrarModal()">Volver a pago simple</button>
+    <button class="btn ghost no-print" onclick="cerrarModal()">Cancelar</button>`;
+  let efAplicado=0;
+  const refresh=()=>{
+    // El efectivo tipeado es lo RECIBIDO; lo que APLICA al total se capa a lo que falta
+    // cubrir (nunca mas que eso), y el resto es vuelto. Asi "pasarse" en efectivo nunca
+    // rompe el cuadre: siempre se resuelve como vuelto, no como error.
+    const otros = metodos.filter(m=>m!=='efectivo').reduce((a,m)=>a+(+montos[m]||0),0);
+    const efRecibido = +montos['efectivo']||0;
+    const faltaCubrir = Math.max(0, total-otros);
+    efAplicado = Math.min(efRecibido, faltaCubrir);
+    const vuelto = Math.max(0, efRecibido-efAplicado);
+    const falta = total-(otros+efAplicado);
+    const el=$('#divEstado'), ok=$('#okDiv'), ve=$('#vueltoDiv');
+    el.innerHTML = falta===0?'<span class="ok">✓ Cuadra con el total</span>':`<span class="warn">Falta ${pesos(falta)}</span>`;
+    if(ok) ok.disabled = falta!==0;
+    ve.innerHTML = vuelto>0?`Vuelto: ${pesos(vuelto)}`:'';
+  };
+  $('#modalBody').querySelectorAll('input[data-m]').forEach(inp=>inp.oninput=()=>{ montos[inp.dataset.m]=+inp.value||0; refresh(); });
+  $('#okDiv').onclick=()=>{
+    pagosUI = metodos.filter(m=> m==='efectivo' ? efAplicado>0 : (+montos[m]||0)>0)
+      .map(m=> m==='efectivo' ? {metodo:'efectivo',monto:efAplicado} : {metodo:m,monto:+montos[m]});
+    const efRecibido=+montos['efectivo']||0;
+    pagoConUI = (efAplicado>0 && efRecibido>efAplicado) ? efRecibido : null;
+    if(!pagosUI.length) setPagoSimple();
+    renderPagoResumen(); cerrarModal();
+  };
+  refresh(); abrirModal();
+}
+
+// ---------- menu ----------
+function renderCats(){
+  $('#cats').innerHTML = MENU.categorias.map((c,i)=>
+    `<button class="cat ${i===catActual?'active':''}" onclick="catActual=${i};renderCats();renderProds()">${c.nombre}</button>`).join('');
+}
+function renderProds(){
+  const c = MENU.categorias[catActual];
+  $('#catNota').textContent = c.nota||'';
+  let html = '';
+  c.productos.forEach((p,i)=>{
+    const b2x = p.promo_2x?'<span class="badge2x">2x</span>':'';
+    if(p.desagrupar && p.variantes.length){
+      // Papas / Salchipapas: un boton por tamano, agrega directo (punto 10)
+      p.variantes.forEach(v=>{
+        html += `<button class="prod" onclick="addDirecto(${catActual},${i},'${v.valor}')">
+          <span class="n">${p.nombre} · ${v.label} ${b2x}</span>
+          <span class="p">${pesos(v.precio)}</span></button>`;
+      });
+    } else if(p.desagrupar && (p.variedades||[]).length){
+      // Lata CCU (02-jul, punto G): un boton por sabor, agrega directo (1 clic, sin
+      // pasar por el picker de 2 pasos) + un boton generico al final para cuando la
+      // venta es indefinida (el sabor real se anota despues en el comentario del item).
+      p.variedades.forEach(v=>{
+        html += `<button class="prod" onclick="addDirectoSabor(${catActual},${i},'${v.replace(/'/g,"\\'")}')">
+          <span class="n">${p.nombre} · ${v} ${b2x}</span>
+          <span class="p">${pesos(p.precio_desde)}</span></button>`;
+      });
+      html += `<button class="prod" onclick="addDirectoSabor(${catActual},${i},'')">
+        <span class="n">${p.nombre} (otro / según pida) ${b2x}</span>
+        <span class="d">anota el sabor real en el comentario del ítem</span>
+        <span class="p">${pesos(p.precio_desde)}</span></button>`;
+    } else {
+      const precio = p.precio_desde!=null ? (p.variantes.length?'desde ':'')+pesos(p.precio_desde) : '';
+      html += `<button class="prod" onclick="clickProd(${catActual},${i})">
+        <span class="n">${p.nombre} ${b2x}</span>
+        ${p.desc?`<span class="d">${p.desc}</span>`:''}
+        <span class="p">${precio}</span></button>`;
+    }
+  });
+  $('#prods').innerHTML = html;
+}
+
+// ---------- agregar (toque-confirma; picker con armado/sabor cuando hace falta) ----------
+function clickProd(ci,pi){
+  const cat = MENU.categorias[ci], p = cat.productos[pi];
+  const tieneVar=p.variantes.length, tieneSab=p.variedades.length, tieneArm=(p.armados||[]).length;
+  if(!tieneVar && !tieneSab && !tieneArm){ addItem(cat.nombre,p,null,null,null,p.precio_desde); return; }
+  // Solo variante (sin sabor ni armado): tocar la variante AGREGA directo (puntos 2 y 10)
+  if(tieneVar && !tieneSab && !tieneArm){ pickerVarianteDirecto(cat,p); return; }
+  // Hay sabor o armado: picker combinable con botón "Agregar"
+  pickerCompleto(cat,p);
+}
+
+// Desagrupados (papas/salchipapas): el botón ya trae el tamaño -> agrega directo
+function addDirecto(ci,pi,valor){
+  const cat=MENU.categorias[ci], p=cat.productos[pi];
+  const v=p.variantes.find(x=>x.valor===valor);
+  addItem(cat.nombre,p,valor,null,null,v?v.precio:p.precio_desde);
+}
+
+// Desagrupados por SABOR (Lata CCU, punto G 02-jul): el botón ya trae el sabor ->
+// agrega directo, 1 solo clic. sabor='' = el botón genérico (venta indefinida).
+function addDirectoSabor(ci,pi,sabor){
+  const cat=MENU.categorias[ci], p=cat.productos[pi];
+  addItem(cat.nombre,p,null,sabor||null,null,p.precio_desde);
+}
+
+function pickerVarianteDirecto(cat,p){
+  $('#modalBody').innerHTML = `<h3>${p.nombre}</h3>${p.desc?`<div class="lbl">${p.desc}</div>`:''}
+    <div class="lbl">Toca el tamaño / variante (se agrega al instante)</div>
+    <div class="opts" id="ov">${p.variantes.map(v=>`<div class="opt" data-v="${v.valor}">${v.label} · ${pesos(v.precio)}</div>`).join('')}</div>
+    <button class="btn ghost no-print" onclick="cerrarModal()">Cancelar</button>`;
+  $('#ov').querySelectorAll('.opt').forEach(o=>o.onclick=()=>{
+    const v=p.variantes.find(x=>x.valor===o.dataset.v);
+    addItem(cat.nombre,p,o.dataset.v,null,null,v?v.precio:p.precio_desde); cerrarModal();
+  });
+  abrirModal();
+}
+
+function pickerCompleto(cat,p){
+  let selVar = p.variantes.length?null:undefined, selSab=null, selArm=null;
+  const render=()=>{
+    $('#modalBody').innerHTML = `
+      <h3>${p.nombre}</h3>${p.desc?`<div class="lbl">${p.desc}</div>`:''}
+      ${p.variantes.length?`<div class="lbl">Variante</div><div class="opts" id="ov">
+        ${p.variantes.map(v=>`<div class="opt ${selVar===v.valor?'sel':''}" data-v="${v.valor}">${v.label} · ${pesos(v.precio)}</div>`).join('')}</div>`:''}
+      ${p.variedades.length?`<div class="lbl">Sabor / variedad</div><div class="opts" id="os">
+        ${p.variedades.map(s=>`<div class="opt ${selSab===s?'sel':''}" data-s="${s}">${s}</div>`).join('')}</div>`:''}
+      ${(p.armados||[]).length?`<div class="lbl">Armado (opcional)</div><div class="opts" id="oa">
+        ${p.armados.map(a=>`<div class="opt ${selArm===a?'sel':''}" data-a="${a}">${a}</div>`).join('')}</div>`:''}
+      <button class="btn primary" id="okAdd">Agregar al pedido</button>
+      <button class="btn ghost no-print" onclick="cerrarModal()">Cancelar</button>`;
+    $('#ov')?.querySelectorAll('.opt').forEach(o=>o.onclick=()=>{selVar=o.dataset.v;render()});
+    $('#os')?.querySelectorAll('.opt').forEach(o=>o.onclick=()=>{selSab=(selSab===o.dataset.s?null:o.dataset.s);render()});
+    $('#oa')?.querySelectorAll('.opt').forEach(o=>o.onclick=()=>{selArm=(selArm===o.dataset.a?null:o.dataset.a);render()});
+    $('#okAdd').onclick=()=>{
+      if(p.variantes.length && !selVar){toast('Elige una variante');return;}
+      const vObj = p.variantes.find(v=>v.valor===selVar);
+      addItem(cat.nombre, p, selVar||null, selSab, selArm, vObj?vObj.precio:p.precio_desde);
+      cerrarModal();
+    };
+  };
+  render(); abrirModal();
+}
+
+function addItem(categoria, p, variante, sabor, armado, precio){
+  const variedad = sabor||"", arm = armado||"";
+  // merge por producto+variante+sabor+armado (NO por comentario, que se agrega después).
+  // El armado va luego a 'notas'; como el tarificador agrupa por cat/producto/variante,
+  // dos del mismo producto con armado distinto igual forman la promo 2x.
+  const ex = pedido.find(it=>it.categoria===categoria && it.producto===p.nombre
+    && it.variante===variante && it.variedad===variedad && it.armado===arm);
+  if(ex) ex.cantidad++;
+  else pedido.push({categoria,producto:p.nombre,variante,
+    varLabel:variante?(p.variantes.find(v=>v.valor===variante)||{}).label:'',
+    variedad,armado:arm,comentario:"",cantidad:1,precio});
+  renderPedido();
+}
+
+// ---------- pedido actual ----------
+function renderPedido(){
+  const box = $('#items');
+  if(!pedido.length){ box.innerHTML='<div class="vacio">Toca productos del menú para armar el pedido.</div>'; }
+  else box.innerHTML = pedido.map((it,i)=>`
+    <div class="item">
+      <div class="item-main">
+        <div class="info">
+          <div class="t">${it.producto}${it.varLabel?` · ${it.varLabel}`:''}</div>
+          <div class="s">${it.armado?`<span class="tag">${it.armado}</span> `:''}${it.variedad?`<span class="tag">${it.variedad}</span> `:''}${pesos(it.precio)} c/u</div>
+        </div>
+        <div class="qty">
+          <button onclick="chgQty(${i},-1)">−</button><span>${it.cantidad}</span><button onclick="chgQty(${i},1)">+</button>
+        </div>
+        <button class="x" title="Quitar" onclick="quitar(${i})">✕</button>
+      </div>
+      <input class="nota-item" placeholder="Comentario de este ítem (ej: 1 con el pan frío)"
+        value="${(it.comentario||'').replace(/"/g,'&quot;')}" oninput="setNota(${i},this.value)">
+    </div>`).join('');
+  actualizarTotal();
+}
+function chgQty(i,d){ pedido[i].cantidad+=d; if(pedido[i].cantidad<=0) pedido.splice(i,1); renderPedido(); }
+function quitar(i){ pedido.splice(i,1); renderPedido(); }
+function setNota(i,v){ if(pedido[i]) pedido[i].comentario=v; }   // sin re-render: no perder el foco al tipear
+function limpiarPedido(){
+  pedido=[];
+  if(editandoId){ editandoId=null; marcarEdicion(false); }   // si estaba editando, cancelar la edicion
+  $('#cliente').value=''; $('#notas').value='';
+  if($('#pagaCon')) $('#pagaCon').value='';
+  if($('#telefono')) $('#telefono').value='';
+  if($('#mesa')) $('#mesa').value='';
+  if($('#direccion')) $('#direccion').value='';          // bug: antes no se borraba la direccion
+  if($('#deliveryCobro')) $('#deliveryCobro').value='0';  // bug: antes quedaba el cobro anterior
+  formaPago = (MENU&&MENU.local&&MENU.local.pago&&MENU.local.pago[0]) || formaPago;
+  $('#pagos').querySelectorAll('button').forEach(b=>b.classList.toggle('on', b.dataset.v===formaPago));
+  setPagoSimple(); renderPagoResumen();   // 02-jul: el resumen "pago dividido" quedaba pegado
+                                          // al pedido nuevo hasta que el total cambiara; se
+                                          // limpia aca (crear pedido y Vaciar pasan por aqui)
+  cliEstado('',''); ocultarSugerencias();
+  setModalidad('local');   // vuelve al modo por defecto (muestra/oculta las cajas correctas)
+  renderPedido(); updateVuelto();
+}
+function updateVuelto(){
+  const box=$('#boxVuelto'); if(!box) return;
+  const esEfectivo = formaPago==='efectivo';
+  box.style.display = esEfectivo?'block':'none';
+  const el=$('#vueltoCalc'); if(!el) return;
+  const pc=+$('#pagaCon').value||0;
+  if(!esEfectivo || !pc){ el.textContent=''; return; }
+  const v=pc-(totalActual||0);
+  el.innerHTML = v>=0 ? `Vuelto: ${pesos(v)}` : `<span class="bad">Falta ${pesos(-v)}</span>`;
+}
+
+async function actualizarTotal(){
+  $('#btnCrear').disabled = !pedido.length;
+  if(!pedido.length){ $('#totalVal').textContent='$0'; $('#promoNota').textContent=''; $('#alertBox').innerHTML=''; totalActual=0; updateVuelto(); actualizarBadgesMovil(); return; }
+  const body={items:pedido.map(it=>({categoria:it.categoria,producto:it.producto,variante:it.variante,cantidad:it.cantidad,notas:itemNotas(it)})),
+    delivery_cobro: modalidad==='delivery'? (+$('#deliveryCobro').value||0):0};
+  const r = await (await fetch('/api/preview',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)})).json();
+  $('#totalVal').textContent = pesos(r.total);
+  totalActual = r.total;
+  const hayPromo = (r.items||[]).some(it=>it.pares_promo);
+  $('#promoNota').textContent = hayPromo?'incluye promo 2x':'';
+  $('#alertBox').innerHTML = (r.problemas&&r.problemas.length)?
+    `<div class="alert">⚠️ Revisar: ${r.problemas.join('; ')}</div>`:'';
+  // si habia pago dividido y el total cambio, se invalida (debe volver a sumar el total)
+  if(pagosUI){
+    const suma = pagosUI.reduce((a,p)=>a+(p.monto||0),0);
+    if(suma !== totalActual){ setPagoSimple(); renderPagoResumen(); toast('El total cambió: reingresa el pago dividido'); }
+  }
+  updateVuelto(); actualizarBadgesMovil();
+}
+
+// modalidad (retiro / delivery / local)
+$('#segModalidad').querySelectorAll('button').forEach(b=>b.onclick=()=>setModalidad(b.dataset.v));
+function setModalidad(v){
+  modalidad=v;
+  $('#segModalidad').querySelectorAll('button').forEach(x=>x.classList.toggle('on',x.dataset.v===v));
+  $('#boxTelefono').style.display = (v==='retiro'||v==='delivery')?'block':'none';
+  $('#boxMesa').style.display = (v==='local')?'block':'none';
+  $('#boxDelivery').style.display = (v==='delivery')?'grid':'none';
+  $('#lblCliente').textContent = (v==='local')?'Cliente (nombre)':'Cliente';
+  ocultarSugerencias(); actualizarTotal(); updateVuelto();
+  if(v==='delivery') cargarDireccionesGuardadas($('#telefono')?.value);
+  else { const box=$('#boxDireccionesGuardadas'); if(box) box.style.display='none'; }
+}
+$('#deliveryCobro')?.addEventListener('input',actualizarTotal);
+$('#pagaCon')?.addEventListener('input',updateVuelto);
+
+// ---------- clientes (teléfono y nombre) ----------
+const soloDigitos = s => (String(s||'').match(/\d/g)||[]).join('');
+function cliEstado(msg, cls){ const e=$('#clienteEstado'); if(!e) return; e.textContent=msg||''; e.className='cliente-estado'+(cls?(' '+cls):''); }
+let telT;
+function onTelInput(){
+  clearTimeout(telT);
+  const d=soloDigitos($('#telefono').value);
+  if(d.length>=3){ telT=setTimeout(()=>buscarPorTelefono(d),200); }   // sugerir desde 3 digitos
+  else { ocultarSugerencias(); cliEstado('',''); }
+}
+async function buscarPorTelefono(d){
+  let r; try{ r=await (await fetch('/api/clientes?telefono='+encodeURIComponent(d))).json(); }catch(e){ return; }
+  const cs=r.clientes||[]; const sg=$('#sugerenciasTel');
+  if(!cs.length){ ocultarSugerencias(); if(d.length>=8) cliEstado('Cliente nuevo — completa el nombre'+(modalidad==='delivery'?' y la dirección':''),'nuevo'); return; }
+  window._sug=cs;
+  sg.innerHTML = cs.map((c,i)=>`<div onclick="elegirCliente(${i})"><b>${c.telefono||''}</b> · ${(c.nombre||'').trim()}${c.direccion?`<br><span style="color:var(--muted)">${c.direccion}</span>`:''}</div>`).join('');
+  sg.style.display='block';
+}
+async function buscarCliente(){   // boton "Buscar" (lookup exacto de los 9 digitos)
+  const d=soloDigitos($('#telefono').value);
+  if(d.length<8){ cliEstado('Escribe el teléfono (9 dígitos)',''); return; }
+  const r=await fetch('/api/clientes/'+encodeURIComponent(d));
+  if(r.ok){ const c=await r.json(); $('#cliente').value=(c.nombre||'').trim();
+    if($('#direccion')) $('#direccion').value=c.direccion||''; cliEstado('✓ Cliente: '+(c.nombre||'').trim(),'ok'); ocultarSugerencias();
+    recalcularCobroDelivery(); cargarDireccionesGuardadas(d); }
+  else { cliEstado('Cliente nuevo — completa el nombre'+(modalidad==='delivery'?' y la dirección':''),'nuevo'); $('#cliente').focus(); }
+}
+// Sugerencias SOLO por telefono (Gonza: en el nombre no le sirven)
+function onClienteInput(){ ocultarSugerencias(); }
+function elegirCliente(i){ const c=window._sug[i]; $('#cliente').value=(c.nombre||'').trim();
+  if(c.telefono && $('#telefono')) $('#telefono').value=c.telefono;
+  if($('#direccion')) $('#direccion').value=c.direccion||'';
+  if(c.telefono) cliEstado('✓ Cliente: '+(c.nombre||'').trim(),'ok'); ocultarSugerencias();
+  recalcularCobroDelivery(); if(c.telefono) cargarDireccionesGuardadas(c.telefono); }
+function ocultarSugerencias(){ ['#sugerencias','#sugerenciasTel'].forEach(id=>{ const sg=$(id); if(sg){ sg.style.display='none'; sg.innerHTML=''; } }); }
+
+// El local ya usa la convencion "(monto) direccion" o "[monto] direccion" en
+// direcciones reales (ej: clientes importados) para marcar el cobro de esa zona.
+// Se toma ese monto solo, no se inventa nada. El delimitador es OBLIGATORIO: un
+// numero suelto al inicio (sin parentesis ni corchetes) puede ser parte real de
+// la calle (ej. "12 de Marzo", calles con nombre de fecha) y NO se puede asumir
+// que sea un monto — bug real encontrado y corregido con Gonza el 2026-07-01.
+const RE_PREFIJO_MONTO = /^[(\[]\s*\$?\s*(\d+)\s*[)\]]\s*/;
+function recalcularCobroDelivery(){
+  if(modalidad!=='delivery') return;
+  const dirEl=$('#direccion'), cobroEl=$('#deliveryCobro');
+  if(!dirEl || !cobroEl) return;
+  const m=(dirEl.value||'').trim().match(RE_PREFIJO_MONTO);
+  const monto=m?(+m[1]||0):0;
+  cobroEl.value=monto;
+  actualizarTotal();
+  if(monto===0) toast('Cobro delivery $0', 1000);
+}
+
+// Reparacion automatica de direcciones (punto: autosanar el prefijo "(monto)").
+// Blindaje "a prueba de fuego": el prefijo puede venir con corchetes [1500] o ya
+// bien formado (1500) — siempre se quita ENTERO (parentesis o corchetes + numero
+// + cierre) y se reemplaza por el monto ACTUAL del campo, redondeado a entero y
+// nunca negativo. Si no hay prefijo CON delimitador, se agrega sin tocar el resto
+// del texto (un numero suelto al inicio, sin delimitador, no cuenta como prefijo).
+function quitarPrefijoMontoDireccion(direccion){
+  return (direccion||'').trim().replace(RE_PREFIJO_MONTO, '').trim();
+}
+function direccionConMonto(direccion, monto){
+  const resto = quitarPrefijoMontoDireccion(direccion);
+  const m = Math.max(0, Math.round(+monto || 0));   // SOLO entero, nunca negativo/decimal
+  return `(${m}) ${resto}`.trim();
+}
+// Edicion SIN restringir a un rol (cualquier cajero logueado puede corregir el precio
+// guardado del cliente al cobrar un delivery real). PENDIENTE (anotado por Gonza,
+// 2026-07-01): blindar esto a futuro con aprobacion de admin antes de guardar el
+// cambio (como el PIN de un supervisor en caja de supermercado) — falta un permiso
+// nuevo tipo 'autorizar_precio_delivery' y su flujo de aprobacion.
+function autosanarDireccionCliente(){
+  if(modalidad!=='delivery') return;
+  const dirEl=$('#direccion'), cobroEl=$('#deliveryCobro');
+  if(!dirEl || !cobroEl || !dirEl.value.trim()) return;
+  dirEl.value = direccionConMonto(dirEl.value, cobroEl.value);
+}
+
+// Un mismo telefono puede repartir a mas de un lugar (casa, trabajo, etc). Con 0 o 1
+// direccion guardada no se muestra nada (ya se autocompleta solo con la ultima usada);
+// con 2+ se ofrece un selector de BOTONES (no <select>, ver convencion del proyecto)
+// para que el cajero elija sin tener que reescribir la direccion ni el cobro.
+async function cargarDireccionesGuardadas(telefono){
+  const cont=$('#direccionesGuardadas'), box=$('#boxDireccionesGuardadas');
+  if(!cont || !box) return;
+  if(modalidad!=='delivery'){ box.style.display='none'; cont.innerHTML=''; return; }
+  const d=soloDigitos(telefono);
+  if(d.length<8){ box.style.display='none'; cont.innerHTML=''; return; }
+  let r; try{ r=await (await fetch('/api/clientes/'+encodeURIComponent(d)+'/direcciones')).json(); }catch(e){ return; }
+  const dirs=r.direcciones||[];
+  if(dirs.length<2){ box.style.display='none'; cont.innerHTML=''; return; }
+  window._dirs=dirs;
+  cont.innerHTML = dirs.map((dd,i)=>`<button type="button" onclick="elegirDireccion(${i})">${dd.direccion} · $${dd.delivery_cobro}</button>`).join('');
+  box.style.display='block';
+}
+function elegirDireccion(i){
+  const d=(window._dirs||[])[i]; if(!d) return;
+  const dirEl=$('#direccion'), cobroEl=$('#deliveryCobro');
+  if(dirEl) dirEl.value=direccionConMonto(d.direccion, d.delivery_cobro);
+  if(cobroEl) cobroEl.value=Math.max(0, Math.round(+d.delivery_cobro||0));
+  $('#direccionesGuardadas').querySelectorAll('button').forEach((b,bi)=>b.classList.toggle('on',bi===i));
+  actualizarTotal();
+}
+
+// ---------- editar pedido ----------
+function varLabelDe(categoria, producto, variante){
+  if(!variante) return '';
+  const cat=(MENU.categorias||[]).find(c=>c.nombre===categoria);
+  const prod=cat&&cat.productos.find(p=>p.nombre===producto);
+  const v=prod&&prod.variantes.find(x=>x.valor===variante);
+  return v?v.label:variante;
+}
+async function editarPedido(id){
+  let p; try{ p=await (await fetch('/api/pedidos/'+id)).json(); }catch(e){ toast('No se pudo cargar el pedido'); return; }
+  if(p.detail){ toast(p.detail); return; }
+  editandoId=id;
+  setModalidad(p.modalidad||'local');
+  $('#cliente').value=p.cliente||'';
+  if($('#telefono')) $('#telefono').value=p.telefono||'';
+  if($('#mesa')) $('#mesa').value=p.mesa||'';
+  if($('#direccion')) $('#direccion').value=p.direccion||'';
+  if($('#deliveryCobro')) $('#deliveryCobro').value=p.delivery_cobro||0;
+  if(modalidad==='delivery') cargarDireccionesGuardadas(p.telefono);   // setModalidad() de arriba ya corrio ANTES de fijar #telefono
+  $('#notas').value=p.notas||'';
+  formaPago=p.forma_pago||formaPago;
+  $('#pagos').querySelectorAll('button').forEach(b=>b.classList.toggle('on',b.dataset.v===formaPago));
+  if($('#pagaCon')) $('#pagaCon').value=(p.pago_con!=null?p.pago_con:'');
+  pagosUI = (p.pagos && p.pagos.length>1) ? p.pagos.map(x=>({metodo:x.metodo,monto:x.monto})) : null;
+  renderPagoResumen();
+  pedido=(p.items||[]).map(it=>({categoria:it.categoria,producto:it.producto,variante:it.variante||null,
+    varLabel:varLabelDe(it.categoria,it.producto,it.variante), variedad:'', armado:'', comentario:it.notas||'',
+    cantidad:it.cantidad||1, precio:it.precio_unitario||0}));
+  cliEstado('',''); ocultarSugerencias(); marcarEdicion(true); renderPedido(); updateVuelto();
+  document.querySelectorAll('.col')[1]?.scrollIntoView({behavior:'smooth',block:'start'});
+}
+function marcarEdicion(on){
+  $('#btnCrear').textContent = on?'Guardar cambios':'Crear pedido';
+  $('#bannerEdit').style.display = on?'flex':'none';
+  if(on) $('#bannerEditId').textContent = editandoId;
+}
+function cancelarEdicion(){ editandoId=null; marcarEdicion(false); limpiarPedido(); }
+
+// ---------- crear / guardar ----------
+async function crearPedido(){
+  if(!pedido.length) return;
+  if(!CAJA){ toast('Abre la caja primero'); abrirCajaModal(); return; }
+  autosanarDireccionCliente();   // graba el (monto) real cobrado en la direccion del cliente
+  const body={
+    canal:"cajero",
+    cliente:$('#cliente').value.trim(),
+    modalidad,
+    items:pedido.map(it=>({categoria:it.categoria,producto:it.producto,variante:it.variante,cantidad:it.cantidad,notas:itemNotas(it)})),
+    forma_pago:formaPago,
+    direccion: modalidad==='delivery'?$('#direccion').value.trim():null,
+    delivery_cobro: modalidad==='delivery'?(+$('#deliveryCobro').value||0):0,
+    notas:$('#notas').value.trim(),
+    pago_con: pagosUI ? pagoConUI : ((formaPago==='efectivo' && +$('#pagaCon').value) ? (+$('#pagaCon').value) : null),
+    telefono: (modalidad!=='local') ? soloDigitos($('#telefono').value) : null,
+    mesa: (modalidad==='local') ? ($('#mesa').value||'').trim() : null,
+    pagos: (pagosUI && pagosUI.length) ? pagosUI : null,   // pago dividido (si se usó)
+  };
+  const url = editandoId ? ('/api/pedidos/'+editandoId) : '/api/pedidos';
+  const res = await fetch(url,{method: editandoId?'PUT':'POST',headers:headersConUsuario(),body:JSON.stringify(body)});
+  if(!res.ok){ const e=await res.json(); toast('Error: '+(e.detail||'no se pudo guardar')); return; }
+  const p = await res.json();
+  if(editandoId){ toast(`Pedido #${p.id} actualizado · ${pesos(p.total)}`); editandoId=null; marcarEdicion(false); }
+  else { toast(p.vuelto!=null ? `Pedido #${p.id} · ${pesos(p.total)} · Vuelto ${pesos(p.vuelto)}`
+                              : `Pedido #${p.id} creado · ${pesos(p.total)}`); }
+  // Si este pedido venia de un aviso de rechazado, el aviso se apaga SOLO al quedar
+  // ingresado (21-jul-2026): el problema se resolvio, no hay nada que descartar a mano.
+  if(!editandoId && rechazadoEnCurso!=null){
+    const fid = rechazadoEnCurso; rechazadoEnCurso = null;
+    try{ await fetch('/api/bot/rechazados/'+fid+'/descartar',{method:'POST',
+      headers:headersConUsuario(),
+      body:JSON.stringify({motivo:'ingresado a mano como pedido #'+p.id})}); }catch(e){}
+    pollBot();
+  }
+  // Igual para los PENDIENTES (29-jul-2026): el pedido acaba de entrar a ESTA cola
+  // con su comanda, así que el aviso ya no tiene razón de existir. Se cierra solo --
+  // depender de que alguien se acuerde de apagarlo a mano es como no tener el botón.
+  if(!editandoId && pendienteEnCurso!=null){
+    const fid = pendienteEnCurso; pendienteEnCurso = null;
+    try{ await fetch('/api/bot/pendientes/'+fid+'/descartar',{method:'POST',
+      headers:headersConUsuario(),
+      body:JSON.stringify({motivo:'ingresado a mano como pedido #'+p.id})}); }catch(e){}
+    pollBot();
+  }
+  limpiarPedido(); $('#direccion') && ($('#direccion').value=''); refrescarCaja();
+  // 12-ago-2026 (pedido de Christian): en el celular, apenas el pedido entra hay que VERLO en
+  // la cola. Antes quedaba en la pestaña del menu y habia que ir a buscar la cola a mano, que
+  // en pantalla chica es el paso mas molesto de todos.
+  // El await no estaba antes (cargarCola se llamaba y seguia de largo): se agrega para que la
+  // pestaña se abra con el pedido nuevo YA pintado y no vacia por medio segundo. Es lo ultimo
+  // de la funcion, asi que no cambia el orden de nada mas.
+  await cargarCola();
+  if(esPantallaMovil()) setTabMovil(2);
+}
+
+// ---------- Rechazados del bot: el aviso ahora tiene salidas (21-jul-2026) ----------
+let botRechazados = [];
+let rechazadoEnCurso = null;      // aviso que dio origen al pedido que se esta armando
+async function pintarRechazados(){
+  let d; try{ d = await (await fetch('/api/bot/rechazados')).json(); }catch(e){ return; }
+  botRechazados = d.rechazados || [];
+  const cont = $('#botRechLista'); if(!cont) return;
+  cont.innerHTML = botRechazados.map(r=>{
+    const p = r.payload || {};
+    const items = (p.items||[]).map(i=>`${i.cantidad||1}× ${i.producto||''}`).join(', ');
+    return `<div style="margin:5px 0;padding:7px 9px;background:rgba(0,0,0,.07);border-radius:7px">
+      <div><b>${p.cliente||'Cliente'}</b>${p.telefono?' · '+p.telefono:''} · ${p.modalidad||'—'}</div>
+      <div style="font-size:12px;opacity:.85;margin:2px 0 5px">${items||'(sin ítems)'}</div>
+      <button onclick="ingresarRechazado(${r.id})">📝 Ingresar a mano</button>
+      <button onclick="descartarRechazado(${r.id})">Descartar</button>
+    </div>`;
+  }).join('');
+}
+// Rearma en la pantalla un pedido que el bot ya había capturado, venga de un
+// RECHAZADO o de un PENDIENTE (29-jul-2026: se extrajo de ingresarRechazado para que
+// los dos caminos usen exactamente el mismo armado y no se desincronicen).
+function precargarDesdePayload(p){
+  p = p || {};
+  editandoId = null; marcarEdicion(false);      // es un pedido NUEVO, no una edicion
+  setModalidad(p.modalidad || 'retiro');
+  $('#cliente').value = p.cliente || '';
+  if($('#telefono')) $('#telefono').value = p.telefono || '';
+  if($('#direccion')) $('#direccion').value = p.direccion || '';
+  if($('#deliveryCobro')) $('#deliveryCobro').value = p.delivery_cobro || 0;
+  $('#notas').value = p.notas || '';
+  if(p.forma_pago){
+    formaPago = p.forma_pago;
+    $('#pagos').querySelectorAll('button').forEach(b=>b.classList.toggle('on', b.dataset.v===formaPago));
+  }
+  pedido = (p.items||[]).map(it=>({categoria:it.categoria, producto:it.producto,
+    variante:it.variante||null, varLabel:varLabelDe(it.categoria,it.producto,it.variante),
+    variedad:'', armado:'', comentario:it.notas||'', cantidad:it.cantidad||1, precio:0}));
+  renderPedido(); updateVuelto();
+}
+function ingresarRechazado(id){
+  const r = botRechazados.find(x=>x.id===id);
+  if(!r){ toast('No encontré ese pedido'); return; }
+  precargarDesdePayload(r.payload || {});
+  rechazadoEnCurso = id; pendienteEnCurso = null;
+  toast('Pedido precargado — revísalo y créalo');
+  document.querySelectorAll('.col')[1]?.scrollIntoView({behavior:'smooth',block:'start'});
+}
+async function descartarRechazado(id){
+  const motivo = prompt('¿Por qué descartas este aviso? (queda registrado)');
+  if(motivo===null) return;                      // cancelo el prompt
+  try{
+    await fetch('/api/bot/rechazados/'+id+'/descartar',{method:'POST',
+      headers:headersConUsuario(), body:JSON.stringify({motivo})});
+    toast('Aviso descartado'); pollBot();
+  }catch(e){ toast('No se pudo descartar'); }
+}
+
+// ---------- Pendientes del bot: el aviso deja de ser una señal muerta (29-jul-2026) ----------
+// Hasta hoy esto era UNA LÍNEA de texto ("N pedidos aún no llegan — se reintentan
+// solos") sin ninguna salida: el cajero veía el problema y no podía hacer nada.
+// Los rechazados tenían botones desde el 21-jul; los pendientes —que son justo los
+// del corte de túnel— se habían quedado sin ellos.
+//
+// Ojo con de dónde sale cada llamada: TODO esto va POS → bot, la dirección que
+// funciona siempre. Por eso el panel sirve aunque el túnel esté caído, que es
+// exactamente cuando hay pendientes. Y el pedido se crea en ESTA máquina, con el
+// flujo normal (imprime su comanda como cualquier otro) — no se le pide al bot que
+// lo empuje de vuelta por el túnel roto.
+let botPendientes = [];
+let pendienteEnCurso = null;      // pendiente que dio origen al pedido que se está armando
+let botPendFirma = null;          // qué pendientes hay, para no redibujar de gusto
+async function pintarPendientes(){
+  let d; try{ d = await (await fetch('/api/bot/pendientes')).json(); }catch(e){ return; }
+  botPendientes = d.pendientes || [];
+  const cont = $('#botPendLista'); if(!cont) return;
+  // pollBot corre cada 4s. Si redibujáramos siempre, la conversación que el cajero
+  // acaba de abrir se cerraría sola antes de alcanzar a leerla. Solo se redibuja
+  // cuando cambia QUÉ pendientes hay -- el contador de intentos puede quedar unos
+  // segundos viejo, y es un precio barato al lado de un panel que se colapsa solo.
+  const firma = botPendientes.map(r=>r.id).join(',');
+  if(firma === botPendFirma && cont.childElementCount) return;
+  botPendFirma = firma;
+  cont.innerHTML = botPendientes.map(r=>{
+    const p = r.payload || {};
+    const items = (p.items||[]).map(i=>`${i.cantidad||1}× ${i.producto||''}`).join(', ');
+    const hora = (r.creado_en||'').slice(0,16).replace('T',' ');
+    const dir = p.direccion ? `<div style="font-size:12px;opacity:.8">📍 ${esc(p.direccion)}</div>` : '';
+    return `<div style="margin:5px 0;padding:7px 9px;background:rgba(0,0,0,.07);border-radius:7px">
+      <div><b>${esc(p.cliente||'Cliente')}</b>${p.telefono?' · '+esc(p.telefono):''} · ${esc(p.modalidad||'—')}</div>
+      <div style="font-size:11px;opacity:.7">${hora} · ${r.intentos||0} intento${(r.intentos||0)===1?'':'s'}</div>
+      <div style="font-size:12px;opacity:.85;margin:2px 0 3px">${esc(items)||'(sin ítems)'}</div>
+      ${dir}
+      <div style="margin-top:5px">
+        <button onclick="verConversacionPendiente(${r.id})">💬 Ver conversación</button>
+        <button onclick="ingresarPendiente(${r.id})">📝 Ingresar a mano</button>
+        <button onclick="descartarPendiente(${r.id})">🗑 No tomarlo</button>
+      </div>
+      <div id="convPend${r.id}" style="display:none;margin-top:6px;max-height:240px;overflow-y:auto;
+           background:rgba(0,0,0,.06);border-radius:6px;padding:6px"></div>
+    </div>`;
+  }).join('');
+}
+async function verConversacionPendiente(id){
+  const caja = $('#convPend'+id); if(!caja) return;
+  if(caja.style.display === 'block'){ caja.style.display = 'none'; return; }
+  caja.style.display = 'block';
+  caja.innerHTML = '<div style="opacity:.7;font-size:12px">Trayendo la conversación…</div>';
+  let d; try{ d = await (await fetch('/api/bot/pendientes/'+id+'/conversacion')).json(); }
+  catch(e){ caja.innerHTML = '<div style="font-size:12px">No pude traer la conversación.</div>'; return; }
+  const t = d.turnos || [];
+  if(!t.length){
+    // Honesto: puede no haber nada porque el cerebro ya expiró ese historial.
+    caja.innerHTML = '<div style="font-size:12px;opacity:.8">Sin conversación guardada para este cliente.</div>';
+    return;
+  }
+  caja.innerHTML = t.map(x=>{
+    const mio = x.rol !== 'usuario';
+    return `<div style="margin:3px 0;text-align:${mio?'right':'left'}">
+      <span style="display:inline-block;max-width:85%;padding:4px 7px;border-radius:7px;font-size:12.5px;
+        background:${mio?'rgba(80,140,255,.20)':'rgba(0,0,0,.10)'}">${esc(x.texto||'').replace(/\n/g,'<br>')}</span>
+    </div>`;
+  }).join('');
+  caja.scrollTop = caja.scrollHeight;
+}
+function ingresarPendiente(id){
+  const r = botPendientes.find(x=>x.id===id);
+  if(!r){ toast('No encontré ese pedido'); return; }
+  precargarDesdePayload(r.payload || {});
+  pendienteEnCurso = id; rechazadoEnCurso = null;
+  toast('Pedido precargado — revísalo y créalo');
+  document.querySelectorAll('.col')[1]?.scrollIntoView({behavior:'smooth',block:'start'});
+}
+async function descartarPendiente(id){
+  const motivo = prompt('¿Por qué no se va a tomar este pedido? (queda registrado)');
+  if(motivo===null) return;
+  try{
+    const res = await fetch('/api/bot/pendientes/'+id+'/descartar',{method:'POST',
+      headers:headersConUsuario(), body:JSON.stringify({motivo})});
+    const j = await res.json();
+    // ok=false significa que el reintento automático lo entregó mientras tanto.
+    toast(j && j.ok ? 'Pedido descartado' : 'Ese pedido ya había entrado solo a la cola');
+    pollBot(); cargarCola();
+  }catch(e){ toast('No se pudo descartar'); }
+}
+
+// ---------- Alertas al jefe que WhatsApp no pudo entregar (27-jul-2026, S2) ----------
+// enviar_whatsapp ya reintenta ante fallas transitorias; si aun asi ningun jefe
+// recibe el aviso (ventana de 24h cerrada, numero caido), queda visible aca --
+// no puede depender de que alguien este mirando el chat en ese momento.
+let botAlertas = [];
+async function pintarAlertasFallidas(){
+  let d; try{ d = await (await fetch('/api/bot/alertas')).json(); }catch(e){ return; }
+  botAlertas = d.alertas || [];
+  const cont = $('#botAlertaLista'); if(!cont) return;
+  cont.innerHTML = botAlertas.map(a=>{
+    const hora = (a.creado_en||'').slice(0,16).replace('T',' ');
+    const texto = (a.texto||'').replace(/</g,'&lt;').replace(/\n/g,'<br>');
+    return `<div style="margin:5px 0;padding:7px 9px;background:rgba(0,0,0,.07);border-radius:7px">
+      <div style="font-size:11px;opacity:.7">${hora}</div>
+      <div style="font-size:12.5px;margin:2px 0 5px">${texto}</div>
+      <button onclick="descartarAlertaFallida(${a.id})">Descartar</button>
+    </div>`;
+  }).join('');
+}
+async function descartarAlertaFallida(id){
+  try{
+    await fetch('/api/bot/alertas/'+id+'/descartar',{method:'POST', headers:headersConUsuario()});
+    toast('Aviso descartado'); pollBot();
+  }catch(e){ toast('No se pudo descartar'); }
+}
+
+// ---------- Casos que el bot derivo a una persona (15-sep-2026) ----------
+// El WhatsApp de aviso a los jefes se manda siempre, pero un caso real (un adulto
+// mayor que pidio ayuda) mostro que Meta puede aceptar el envio con 200 y que
+// igual nadie se entere -- no hay forma de saberlo desde afuera del telefono. Este
+// panel es el mismo patron que Pendientes/Rechazados/Alertas: una cola que vive en
+// esta pantalla, no en un WhatsApp que puede no leerse a tiempo.
+const MOTIVO_CASO_HUMANO = {
+  humano_prometido: '🙋 El bot prometió una persona',
+  pedido_grande: '🧾 Pedido grande, lo toma una persona',
+  pedido_duplicado: '🔁 Segundo pedido superpuesto',
+  error_cerebro: '⚠️ El bot no pudo responder',
+};
+let botCasosHumanos = [];
+async function pintarCasosHumanos(){
+  let d; try{ d = await (await fetch('/api/bot/casos-humanos')).json(); }catch(e){ return; }
+  botCasosHumanos = d.casos || [];
+  const cont = $('#botCasoHumanoLista'); if(!cont) return;
+  cont.innerHTML = botCasosHumanos.map(c=>{
+    const hora = (c.creado_en||'').slice(0,16).replace('T',' ');
+    const texto = (c.texto||'').replace(/</g,'&lt;').replace(/\n/g,'<br>');
+    const etiqueta = MOTIVO_CASO_HUMANO[c.motivo] || c.motivo;
+    return `<div style="margin:5px 0;padding:7px 9px;background:rgba(0,0,0,.07);border-radius:7px">
+      <div style="font-size:11px;opacity:.7">${hora} · ${etiqueta}</div>
+      <div style="font-size:12.5px;margin:2px 0 5px">${texto}</div>
+      <button onclick="descartarCasoHumano(${c.id})">Ya se resolvió</button>
+    </div>`;
+  }).join('');
+}
+async function descartarCasoHumano(id){
+  try{
+    await fetch('/api/bot/casos-humanos/'+id+'/descartar',{method:'POST', headers:headersConUsuario()});
+    toast('Caso cerrado'); pollBot();
+  }catch(e){ toast('No se pudo cerrar'); }
+}
+
+// ---------- cola ----------
+async function cargarCola(){
+  let data; try{ data=await (await fetch('/api/cola')).json(); }catch(e){ return; }
+  const box=$('#cola'); const ped=data.pedidos||[];
+  const tc=$('#tabColaSub'); if(tc) tc.textContent = ped.length ? `${ped.length} activo${ped.length>1?'s':''}` : '';
+  if(!ped.length){ box.innerHTML='<div class="vacio">Sin pedidos activos.</div>'; return; }
+  box.innerHTML = ped.map(p=>{
+    const res = p.items.map(it=>`${it.cantidad}× ${it.producto||'?'}${it.variante?` (${it.variante})`:''}${it.notas?` ·${it.notas}`:''}`).join(' · ');
+    const sig = botonesEstado(p);
+    const programado = p.hora_programada
+      ? `<div class="programado-aviso">🟣 PROGRAMADO para las ${p.hora_programada} — NO preparar antes</div>` : '';
+    return `<div class="pedido mod-${p.modalidad} est-${p.estado}${p.hora_programada?' programado':''}">
+      <div class="top">
+        <span class="id">#${p.id}</span>
+        <span class="canal ${p.canal}">${p.canal}</span>
+        <span class="estado ${claseEstado(p)}">${etiquetaEstado(p)}</span>
+      </div>
+      ${programado}
+      <div class="resumen"><b>${p.cliente||'—'}</b> · ${p.modalidad}${p.modalidad==='local'?(p.mesa?` · mesa ${p.mesa}`:''):(p.telefono?` · ${p.telefono}`:'')} · ${p.forma_pago||'—'}<br>${res}</div>
+      <div class="pie"><span class="t">${pesos(p.total)}</span>
+        ${puede('editar_pedido')?`<button class="mini" onclick="editarPedido(${p.id})">Editar</button>`:''}
+        <button class="mini" onclick="imprimirTermica(${p.id})">🖨 Imprimir</button>
+        <button class="mini" onclick="verComanda(${p.id})">Comanda</button>${sig}</div>
+    </div>`;
+  }).join('');
+}
+const rotulo = s => ({confirmado:'Confirmar',en_preparacion:'A cocina',listo:'Listo',entregado:'Entregado'}[s]||s);
+
+// ---------- Ciclo del DELIVERY con paso intermedio (29-jul-2026, pedido de Gonza) ----------
+// El motor SIEMPRE tuvo el paso intermedio: `listo` es un estado que NO saca al pedido de
+// la cola (nucleo.py: en_preparacion -> {entregado, listo} ; listo -> {entregado}). La
+// pantalla nunca lo usó y saltaba de EN PREPARACIÓN directo a ENTREGADO, así que un
+// delivery que ya iba en la moto desaparecía de la cola y nadie sabía si había llegado.
+//
+// Ahora, SOLO para delivery: "Entregado" pasa el pedido a `listo`, que se muestra como
+// EN REPARTO y sigue en la cola; recién el botón "Listo" lo cierra. Retiro y local quedan
+// exactamente igual que siempre — un botón que termina el pedido.
+//
+// Por eso este cambio NO obliga a recompilar el .exe: es solo esta pantalla, que el POS
+// lee del disco en cada carga (rutas.py -> HTML_CAJERO).
+const esReparto = p => p.estado==='listo' && p.modalidad==='delivery';
+const etiquetaEstado = p => esReparto(p) ? 'en reparto' : p.estado.replace('_',' ');
+const claseEstado = p => p.estado + (esReparto(p) ? ' reparto' : '');
+
+function botonesEstado(p){
+  const id=p.id, cancel=puede('anular')?`<button class="mini cancel" onclick="mover(${id},'cancelado')">Cancelar</button>`:'';
+  if(p.estado==='recibido'||p.estado==='confirmado')
+    return `<button class="mini go" onclick="aCocina(${id})">A cocina</button>`+cancel;   // imprime al mandar a cocina
+  if(p.estado==='en_preparacion'){
+    // Delivery: "Entregado" ya no cierra el pedido, lo manda EN REPARTO.
+    if(p.modalidad==='delivery')
+      return `<button class="mini go" onclick="mover(${id},'listo')">Entregado</button>`+cancel;
+    // 04-ago-2026 (P29, pedido de Gonza): un retiro/local PROGRAMADO cierra con
+    // "Retirado" en vez de "Entregado" -- misma transicion de siempre (-> entregado),
+    // solo cambia la etiqueta para que quede claro que es el cliente retirando lo que
+    // esperaba, no una entrega recien salida de cocina.
+    return `<button class="mini go" onclick="mover(${id},'entregado')">${p.hora_programada?'Retirado':'Entregado'}</button>`+cancel;
+  }
+  if(p.estado==='listo')   // en reparto (o un 'listo' de retiro): este botón sí lo saca de la cola
+    return `<button class="mini go" onclick="mover(${id},'entregado')">Listo</button>`+cancel;
+  return '';
+}
+async function mover(id,estado){
+  const r=await fetch(`/api/pedidos/${id}/estado`,{method:'POST',headers:headersConUsuario(),body:JSON.stringify({estado})});
+  if(!r.ok){ const e=await r.json(); toast('Error: '+(e.detail||'')); return; }
+  if(estado==='entregado') toast(`Pedido #${id} entregado`);
+  if(estado==='listo')     toast(`Pedido #${id} salió en reparto`);
+  cargarCola();
+}
+async function aCocina(id){   // manda a cocina Y dispara la impresion automatica de la comanda
+  await mover(id,'en_preparacion');
+  imprimirTermica(id);
+}
+
+// ---------- comanda ----------
+async function verComanda(id){
+  const r = await (await fetch(`/api/pedidos/${id}/comanda`)).json();
+  $('#modalBody').innerHTML = `<h3>Comanda #${id}</h3>
+    <pre class="comanda">${r.texto.replace(/</g,'&lt;')}</pre>
+    <button class="btn primary no-print" id="btnTermica" onclick="imprimirTermica(${id})">🖨️ Imprimir (térmica)</button>
+    <button class="btn ghost no-print" onclick="window.print()">Imprimir por navegador</button>
+    <div class="no-print" style="text-align:center;margin-top:6px">
+      <a href="#" onclick="configImpresora();return false" style="font-size:12px;color:var(--muted)">⚙ Configurar impresora</a></div>
+    <button class="btn ghost no-print" onclick="cerrarModal()">Cerrar</button>`;
+  abrirModal();
+}
+async function imprimirTermica(id){
+  const b=$('#btnTermica'); if(b){ b.disabled=true; b.textContent='Imprimiendo…'; }
+  let r; try{ r=await fetch('/api/pedidos/'+id+'/imprimir',{method:'POST'}); }catch(e){ r=null; }
+  if(r && r.ok){ const d=await r.json(); toast('Comanda enviada a '+d.impresora); }
+  else { const e=r?await r.json():{}; toast('Error de impresión: '+(e.detail||'sin conexión')); }
+  if(b){ b.disabled=false; b.textContent='🖨️ Imprimir (térmica)'; }
+}
+async function configImpresora(){
+  const d = await (await fetch('/api/impresoras')).json();
+  const opts = (d.impresoras||[]).map(n=>`<option ${n===d.actual?'selected':''}>${n}</option>`).join('')
+    || '<option>(no se detectaron impresoras)</option>';
+  const ancho = (d.config&&d.config.ancho)||48;
+  $('#modalBody').innerHTML = `<h3>Configurar impresora</h3>
+    <div class="lbl">Impresora (elige la X-Printer)</div>
+    <select id="selImpresora">${opts}</select>
+    <div class="lbl">Ancho de papel</div>
+    <select id="selAncho">
+      <option value="48" ${ancho==48?'selected':''}>80 mm</option>
+      <option value="32" ${ancho==32?'selected':''}>58 mm</option>
+    </select>
+    <button class="btn primary" onclick="probarImpresora()">Guardar y hacer test</button>
+    <button class="btn ghost" onclick="guardarImpresora(true)">Solo guardar</button>
+    <button class="btn ghost" onclick="cerrarModal()">Cerrar</button>`;
+  abrirModal();
+}
+async function guardarImpresora(aviso){
+  const body={impresora:$('#selImpresora').value, ancho:+$('#selAncho').value};
+  const r=await fetch('/api/impresora',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)});
+  if(aviso) toast(r.ok?'Impresora guardada':'Error al guardar');
+  return r.ok;
+}
+async function probarImpresora(){
+  await guardarImpresora(false);
+  let r; try{ r=await fetch('/api/imprimir/test',{method:'POST'}); }catch(e){ r=null; }
+  if(r && r.ok){ const d=await r.json(); toast('Test enviado a '+d.impresora); }
+  else { const e=r?await r.json():{}; toast('Error: '+(e.detail||'sin conexión')); }
+}
+
+// ---------- caja (apertura / cierre / resumen del día) ----------
+async function refrescarCaja(){
+  let c; try{ c=await (await fetch('/api/caja')).json(); }catch(e){ return; }
+  CAJA = c.abierta ? c.resumen : null;
+  renderCajaHdr(c);
+  if(!c.abierta && puede('abrir_caja') && !$('#modal').classList.contains('show')) abrirCajaModal();
+}
+function renderCajaHdr(c){
+  const el=$('#cajaHdr'); if(!el) return;
+  if(c.abierta){
+    const r=c.resumen;
+    el.innerHTML = `<span class="cj">Caja #${r.caja_id}</span>`
+      + `<span class="k">Fondo</span> <b>${pesos(r.fondo_inicial)}</b>`
+      + `<span class="k">Ventas</span> <b>${pesos(r.total_ventas)}</b>`
+      + `<span class="k">Efvo. en caja</span> <b>${pesos(r.esperado_efectivo)}</b>`
+      + `<button class="cj-btn" onclick="verResumen()">Resumen</button>`
+      + (puede('ver_informe')?`<button class="cj-btn" onclick="informeVentas()">📊 Informe</button>`:'')
+      + (puede('ver_informe')?`<button class="cj-btn" onclick="historialCajas()">🗂 Cierres</button>`:'')
+      + (puede('cerrar_caja')?`<button class="cj-btn cerrar" onclick="cerrarCajaModal()">Cerrar caja</button>`:'')
+      + `<button class="cj-btn" onclick="configImpresora()" title="Configurar impresora">🖨</button>`;
+  } else {
+    el.innerHTML = `<span class="cj cerrada">Caja cerrada</span>`
+      + (puede('abrir_caja')?`<button class="cj-btn" onclick="abrirCajaModal()">Abrir caja</button>`:'')
+      + (puede('ver_informe')?`<button class="cj-btn" onclick="informeVentas()">📊 Informe</button>`:'')
+      + (puede('ver_informe')?`<button class="cj-btn" onclick="historialCajas()">🗂 Cierres</button>`:'')
+      + `<button class="cj-btn" onclick="configImpresora()" title="Configurar impresora">🖨</button>`;
+  }
+}
+const hoyISO = ()=>{ const d=new Date(); return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0'); };
+async function informeVentas(desde, hasta){
+  desde = desde || hoyISO(); hasta = hasta || hoyISO();
+  let inf; try{ inf=await (await fetch(`/api/ventas?desde=${desde}&hasta=${hasta}`)).json(); }catch(e){ toast('No se pudo cargar el informe'); return; }
+  window._inf={desde,hasta};
+  const metodos = Object.entries(inf.por_metodo||{}).sort((a,b)=>b[1]-a[1])
+    .map(([k,v])=>`<tr><td style="text-transform:capitalize">${k}</td><td style="text-align:right">${pesos(v)}</td></tr>`).join('')
+    || `<tr><td colspan="2" style="color:var(--muted)">Sin ventas en el rango</td></tr>`;
+  const filas = (inf.pedidos||[]).slice().reverse().map(p=>{
+    const cancel = p.estado==='cancelado';
+    const pg = (p.pagos&&p.pagos.length)? p.pagos.map(x=>`${x.metodo} ${pesos(x.monto)}`).join(' + ') : (p.forma_pago||'—');
+    const hora = (p.creado_en||'').slice(11,16);
+    return `<tr style="${cancel?'opacity:.55':''}">
+      <td>#${p.id}<br><span style="color:var(--muted);font-size:11px">${hora}</span></td>
+      <td>${p.cliente||'—'}<br><span style="color:var(--muted);font-size:11px">${p.modalidad}${cancel?' · CANCELADO':''}</span></td>
+      <td style="text-align:right">${pesos(p.total)}<br><span style="color:var(--muted);font-size:11px">${pg}</span></td>
+      <td style="text-align:right">${(cancel||!puede('redistribuir_pago'))?'':`<button class="mini" onclick="editarPagoModal(${p.id})">Pago</button>`}</td>
+    </tr>`;
+  }).join('') || `<tr><td colspan="4" style="color:var(--muted)">Sin comandas en el rango</td></tr>`;
+  $('#modalBody').innerHTML = `<h3>Informe de ventas</h3>
+    <div style="display:flex;gap:6px;align-items:center;margin-bottom:8px;flex-wrap:wrap">
+      <span class="lbl" style="margin:0">Desde</span><input type="date" id="infDesde" value="${desde}" style="padding:6px;border:1px solid var(--line);border-radius:7px">
+      <span class="lbl" style="margin:0">Hasta</span><input type="date" id="infHasta" value="${hasta}" style="padding:6px;border:1px solid var(--line);border-radius:7px">
+      <button class="cj-btn cerrar" onclick="informeVentas($('#infDesde').value,$('#infHasta').value)">Ver</button>
+    </div>
+    <table class="tabla">
+      <tr><td>Comandas</td><td style="text-align:right">${inf.n_pedidos}</td></tr>
+      <tr><td>Ventas totales</td><td style="text-align:right"><b>${pesos(inf.total_ventas)}</b></td></tr>
+      ${inf.total_cancelado?`<tr><td>Canceladas (no suman)</td><td style="text-align:right">${pesos(inf.total_cancelado)}</td></tr>`:''}
+      <tr><td colspan="2" class="sub-h">Por forma de pago</td></tr>
+      ${metodos}
+    </table>
+    <div class="sub-h">Detalle de comandas (toca "Pago" para redistribuir)</div>
+    <table class="tabla">${filas}</table>
+    <button class="btn ghost" onclick="cerrarModal()">Cerrar</button>`;
+  abrirModal();
+}
+async function editarPagoModal(id){
+  let p; try{ p=await (await fetch('/api/pedidos/'+id)).json(); }catch(e){ toast('No se pudo cargar'); return; }
+  if(p.detail){ toast(p.detail); return; }
+  const metodos=(MENU.local.pago||[]), total=p.total||0, montos={};
+  metodos.forEach(m=>montos[m]=0);
+  (p.pagos||[]).forEach(x=>{ montos[x.metodo]=(montos[x.metodo]||0)+x.monto; });
+  if(!(p.pagos&&p.pagos.length) && p.forma_pago && montos[p.forma_pago]!==undefined) montos[p.forma_pago]=total;
+  $('#modalBody').innerHTML = `<h3>Pago de la comanda #${id}</h3>
+    <div class="lbl">Redistribuye el total ${pesos(total)} entre métodos (no cambia los productos). En efectivo, escribe lo que el cliente entrega — el vuelto se calcula solo.</div>
+    ${metodos.map(m=>`<div style="display:flex;align-items:center;gap:8px;margin:5px 0">
+      <span style="flex:1;text-transform:capitalize">${m}</span>
+      <input type="number" min="0" data-m="${m}" value="${montos[m]||''}" placeholder="0"
+        style="width:130px;text-align:right;border:1px solid var(--line);border-radius:8px;padding:7px"></div>`).join('')}
+    <div id="epEstado" class="descuadre"></div>
+    <div id="vueltoEP" class="vuelto"></div>
+    <button class="btn primary" id="epOk">Guardar pago</button>
+    <button class="btn ghost" onclick="informeVentas(window._inf&&window._inf.desde,window._inf&&window._inf.hasta)">Volver al informe</button>`;
+  let efAplicado=0;
+  const refresh=()=>{
+    // Mismo criterio que dividirPagoModal: el efectivo tipeado es lo RECIBIDO; lo que
+    // APLICA se capa a lo que falta cubrir, el resto es vuelto (nunca "te pasaste").
+    const otros = metodos.filter(m=>m!=='efectivo').reduce((a,m)=>a+(+montos[m]||0),0);
+    const efRecibido = +montos['efectivo']||0;
+    const faltaCubrir = Math.max(0, total-otros);
+    efAplicado = Math.min(efRecibido, faltaCubrir);
+    const vuelto = Math.max(0, efRecibido-efAplicado);
+    const falta = total-(otros+efAplicado);
+    const el=$('#epEstado'), ok=$('#epOk'), ve=$('#vueltoEP');
+    el.innerHTML= falta===0?'<span class="ok">✓ Cuadra</span>':`<span class="warn">Falta ${pesos(falta)}</span>`;
+    if(ok) ok.disabled=falta!==0;
+    ve.innerHTML = vuelto>0?`Vuelto: ${pesos(vuelto)}`:'';
+  };
+  $('#modalBody').querySelectorAll('input[data-m]').forEach(inp=>inp.oninput=()=>{ montos[inp.dataset.m]=+inp.value||0; refresh(); });
+  $('#epOk').onclick=async()=>{
+    const pagos = metodos.filter(m=> m==='efectivo' ? efAplicado>0 : (+montos[m]||0)>0)
+      .map(m=> m==='efectivo' ? {metodo:'efectivo',monto:efAplicado} : {metodo:m,monto:+montos[m]});
+    const efRecibido=+montos['efectivo']||0;
+    const body={pagos}; if(efAplicado>0 && efRecibido>efAplicado) body.pago_con=efRecibido;
+    const r=await fetch('/api/pedidos/'+id+'/pagos',{method:'POST',headers:headersConUsuario(),body:JSON.stringify(body)});
+    if(!r.ok){ const e=await r.json(); toast('Error: '+(e.detail||'no se pudo')); return; }
+    toast('Pago actualizado'); refrescarCaja(); informeVentas(window._inf&&window._inf.desde,window._inf&&window._inf.hasta);
+  };
+  refresh(); abrirModal();
+}
+function abrirCajaModal(){
+  $('#modalBody').innerHTML = `<h3>Abrir caja</h3>
+    <div class="lbl">Efectivo inicial en caja (fondo)</div>
+    <input id="fondoInput" type="number" min="0" value="0" class="big-input">
+    <div class="lbl">Cajero (opcional)</div>
+    <input id="cajeroInput" placeholder="Nombre de quien atiende">
+    <button class="btn primary" onclick="abrirCaja()">Abrir caja</button>`;
+  abrirModal(true);
+  setTimeout(()=>{ const f=$('#fondoInput'); if(f){ f.focus(); f.select(); } }, 50);
+}
+async function abrirCaja(){
+  const fondo=+$('#fondoInput').value||0;
+  const r=await fetch('/api/caja/abrir',{method:'POST',headers:{'Content-Type':'application/json'},
+    body:JSON.stringify({fondo_inicial:fondo, cajero:($('#cajeroInput').value||'').trim()})});
+  if(!r.ok){ const e=await r.json(); toast('Error: '+(e.detail||'')); return; }
+  cerrarModal(); await refrescarCaja(); toast('Caja abierta · fondo '+pesos(fondo));
+}
+function resumenHTML(r){
+  // 02-jul: se retira la lista generica "Por forma de pago" y se reemplaza por un
+  // bloque de CUADRE por cada metodo (mismo criterio para todos: lo que declara caja
+  // vs. lo que hay que conciliar). Efectivo es el unico que se cuenta fisico (fondo +
+  // ventas); tarjeta/transferencia se concilian contra el resumen del POS de tarjeta
+  // o la cartola bancaria, por eso su cuadre es mas simple (solo el total vendido).
+  const otros = Object.entries(r.por_metodo||{}).filter(([k])=>k!=='efectivo').sort((a,b)=>b[1]-a[1]);
+  const bloquesOtros = otros.map(([k,v])=>`
+    <tr><td colspan="2" class="sub-h">Cuadre ${k}</td></tr>
+    <tr><td>Ventas en ${k}</td><td style="text-align:right"><b>${pesos(v)}</b></td></tr>`).join('')
+    || `<tr><td colspan="2" style="color:var(--muted)">Sin ventas en otros métodos</td></tr>`;
+  return `<table class="tabla">
+    <tr><td>Pedidos</td><td style="text-align:right">${r.n_pedidos}</td></tr>
+    <tr><td>Ventas totales</td><td style="text-align:right"><b>${pesos(r.total_ventas)}</b></td></tr>
+    <tr><td colspan="2" class="sub-h">Cuadre efectivo</td></tr>
+    <tr><td>Fondo inicial</td><td style="text-align:right">${pesos(r.fondo_inicial)}</td></tr>
+    <tr><td>+ Ventas en efectivo</td><td style="text-align:right">${pesos(r.efectivo_ventas)}</td></tr>
+    <tr><td><b>= Debería haber en caja</b></td><td style="text-align:right"><b>${pesos(r.esperado_efectivo)}</b></td></tr>
+    ${bloquesOtros}
+  </table>`;
+}
+async function verResumen(){
+  const c=await (await fetch('/api/caja')).json();
+  if(!c.abierta){ toast('No hay caja abierta'); return; }
+  $('#modalBody').innerHTML = `<h3>Resumen del día — Caja #${c.resumen.caja_id}</h3>
+    ${resumenHTML(c.resumen)}
+    <button class="btn ghost" onclick="cerrarModal()">Cerrar</button>`;
+  abrirModal();
+}
+async function cerrarCajaModal(){
+  const c=await (await fetch('/api/caja')).json();
+  if(!c.abierta){ toast('No hay caja abierta'); return; }
+  // Blindaje (punto 6): antes de mostrar el conteo, avisar si queda algo sin terminar
+  // en la cola, con opciones para resolverlo ahi mismo (evita que un pedido quede
+  // colgando de una caja ya cerrada).
+  let cola=[]; try{ cola=(await (await fetch('/api/cola')).json()).pedidos||[]; }catch(e){}
+  if(cola.length){ mostrarPendientesAntesDeCerrar(cola); return; }
+  mostrarPantallaConteo(c.resumen);
+}
+function botonesPendienteCierre(p){
+  // Acá se está CERRANDO LA CAJA: lo que se necesita es terminar el pedido, no darle un
+  // paso más. Antes tomaba `sig[0]` de las transiciones, y con el paso de EN REPARTO ese
+  // primer destino puede ser `listo` -- el botón habría movido el pedido sin sacarlo de
+  // la cola, y el modal lo seguiría mostrando: un bucle. Se pide siempre el estado FINAL.
+  const cerrable=(TRANS[p.estado]||[]).includes('entregado');
+  const avanzar = cerrable?`<button class="mini go" onclick="resolverPendienteYRefrescar(${p.id},'entregado')">Entregado</button>`:'';
+  return avanzar+`<button class="mini cancel" onclick="resolverPendienteYRefrescar(${p.id},'cancelado')">Cancelar</button>`;
+}
+async function resolverPendienteYRefrescar(id, estado){
+  await mover(id, estado);
+  cerrarCajaModal();   // vuelve a chequear la cola; si ya quedo vacia, pasa solo al conteo
+}
+function mostrarPendientesAntesDeCerrar(cola){
+  const filas = cola.map(p=>`
+    <div class="pedido">
+      <div class="top"><span class="id">#${p.id}</span><span class="estado ${claseEstado(p)}">${etiquetaEstado(p)}</span></div>
+      <div class="resumen"><b>${p.cliente||'—'}</b> · ${p.modalidad} · ${pesos(p.total)}</div>
+      <div class="pie"><span class="t"></span>${botonesPendienteCierre(p)}</div>
+    </div>`).join('');
+  $('#modalBody').innerHTML = `<h3>⚠ Hay ${cola.length} pedido(s) sin terminar</h3>
+    <div class="lbl">Complétalos o cancélalos antes de cerrar la caja, para que no queden colgando de un día ya cerrado.</div>
+    ${filas}
+    <button class="btn primary" style="background:var(--bad)" onclick="mostrarPantallaConteoForzado()">Cerrar caja de todos modos</button>
+    <button class="btn ghost" onclick="cerrarModal()">Cancelar</button>`;
+  abrirModal();
+}
+async function mostrarPantallaConteoForzado(){
+  const c=await (await fetch('/api/caja')).json();
+  if(!c.abierta){ toast('No hay caja abierta'); return; }
+  mostrarPantallaConteo(c.resumen);
+}
+// Texto "cuadrada / sobran X / faltan X" reusado en efectivo y en cada metodo (03-jul).
+function textoDiferencia(dif){
+  return dif===0 ? 'cuadrada ✓' : (dif>0 ? `sobran ${pesos(dif)}` : `faltan ${pesos(-dif)}`);
+}
+// Filas de "X confirmado" + "Diferencia X" para cada metodo NO efectivo que ya tenga
+// un contado_otros guardado (se usan en la pantalla de "caja cerrada" y en el historial).
+function filasContadoOtros(res){
+  const otros = res.contado_otros||{}, desc = res.descuadre_otros||{};
+  return Object.entries(otros).map(([m,v])=>`
+    <tr><td>${m} confirmado</td><td style="text-align:right">${pesos(v)}</td></tr>
+    <tr><td><b>Diferencia ${m}</b></td><td style="text-align:right"><b>${textoDiferencia(desc[m]||0)}</b></td></tr>`).join('');
+}
+function mostrarPantallaConteo(r){
+  // Ajuste por metodo (punto E2, 03-jul): tarjeta/transferencia no se cuentan fisico,
+  // pero se pueden confirmar contra el resumen del posnet o la cartola bancaria, igual
+  // que el efectivo se confirma contra el conteo fisico. Solo se muestran los metodos
+  // que SI tuvieron venta en el periodo ("cuando existan", pedido de Gonza).
+  const otros = Object.entries(r.por_metodo||{}).filter(([k,v])=>k!=='efectivo' && v>0);
+  window._metodosOtrosCierre = otros.map(([m])=>m);   // orden fijo para leer los inputs al confirmar
+  const inputsOtros = otros.map(([m,v],i)=>`
+    <div class="lbl">${m} confirmado (contra posnet / cartola) — vendido: ${pesos(v)}</div>
+    <input id="contadoOtro_${i}" type="number" min="0" value="${v}" class="big-input" style="margin-bottom:2px"
+      oninput="calcDescuadreOtro(${i},${v})">
+    <div id="descuadreOtro_${i}" class="descuadre" style="font-size:14px;margin:2px 0 10px"></div>`).join('');
+  $('#modalBody').innerHTML = `<h3>Cerrar caja #${r.caja_id}</h3>
+    ${resumenHTML(r)}
+    ${inputsOtros}
+    <div class="lbl">Efectivo contado en caja</div>
+    <input id="contadoInput" type="number" min="0" value="${r.esperado_efectivo}" class="big-input"
+      oninput="calcDescuadre(${r.esperado_efectivo})">
+    <div id="descuadre" class="descuadre"></div>
+    <button class="btn primary" onclick="cerrarCaja()">Confirmar cierre</button>
+    <button class="btn ghost" onclick="cerrarModal()">Cancelar</button>`;
+  calcDescuadre(r.esperado_efectivo);
+  otros.forEach(([m,v],i)=>calcDescuadreOtro(i,v));
+  abrirModal();
+}
+function calcDescuadre(esperado){
+  const c=+$('#contadoInput').value||0, d=c-esperado, el=$('#descuadre'); if(!el) return;
+  if(d===0) el.innerHTML=`<span class="ok">✓ Caja cuadrada</span>`;
+  else if(d>0) el.innerHTML=`<span class="warn">Sobran ${pesos(d)}</span>`;
+  else el.innerHTML=`<span class="bad">Faltan ${pesos(-d)}</span>`;
+}
+function calcDescuadreOtro(i, esperado){
+  const c=+$('#contadoOtro_'+i).value||0, d=c-esperado, el=$('#descuadreOtro_'+i); if(!el) return;
+  if(d===0) el.innerHTML=`<span class="ok">✓ Cuadra</span>`;
+  else if(d>0) el.innerHTML=`<span class="warn">Sobran ${pesos(d)}</span>`;
+  else el.innerHTML=`<span class="bad">Faltan ${pesos(-d)}</span>`;
+}
+async function cerrarCaja(){
+  const contado=+$('#contadoInput').value||0;
+  const contado_otros={};
+  (window._metodosOtrosCierre||[]).forEach((m,i)=>{ contado_otros[m]=+$('#contadoOtro_'+i).value||0; });
+  const r=await fetch('/api/caja/cerrar',{method:'POST',headers:{'Content-Type':'application/json'},
+    body:JSON.stringify({contado_cierre:contado, contado_otros})});
+  if(!r.ok){ const e=await r.json(); toast('Error: '+(e.detail||'')); return; }
+  const res=await r.json();
+  const dif = textoDiferencia(res.descuadre||0);
+  CAJA=null; renderCajaHdr({abierta:false});
+  $('#modalBody').innerHTML = `<h3>Caja #${res.caja_id} cerrada</h3>
+    ${resumenHTML(res)}
+    <table class="tabla">
+      <tr><td>Efectivo contado</td><td style="text-align:right">${pesos(res.contado_cierre)}</td></tr>
+      <tr><td><b>Diferencia</b></td><td style="text-align:right"><b>${dif}</b></td></tr>
+      ${filasContadoOtros(res)}
+    </table>
+    <button class="btn primary" onclick="imprimirCierre(${res.caja_id})">🖨 Imprimir cierre</button>
+    <button class="btn primary" onclick="abrirCajaModal()">Abrir nueva caja</button>
+    <button class="btn ghost" onclick="cerrarModal()">Cerrar</button>`;
+  abrirModal();
+}
+
+// ---------- historial de cierres (punto 12) ----------
+async function imprimirCierre(cajaId){
+  let r; try{ r=await fetch('/api/caja/'+cajaId+'/imprimir',{method:'POST'}); }catch(e){ r=null; }
+  if(r && r.ok){ const d=await r.json(); toast('Cierre enviado a '+d.impresora); }
+  else { const e=r?await r.json():{}; toast('Error de impresión: '+(e.detail||'sin conexión')); }
+}
+async function historialCajas(){
+  let data; try{ data = await (await fetch('/api/cajas')).json(); }catch(e){ toast('No se pudo cargar'); return; }
+  const filas = (data.cajas||[]).map(c=>{
+    const dif = c.descuadre==null ? '<span style="color:var(--muted)">—</span>'
+      : (c.descuadre===0 ? '<span class="ok">cuadrada</span>'
+        : (c.descuadre>0 ? `<span class="warn">+${pesos(c.descuadre)}</span>` : `<span class="bad">${pesos(c.descuadre)}</span>`));
+    return `<tr>
+      <td>#${c.caja_id}<br><span style="color:var(--muted);font-size:11px">${c.estado==='abierta'?'abierta':(c.cerrada_en||'').slice(0,16).replace('T',' ')}</span></td>
+      <td>${c.cajero||'—'}</td>
+      <td style="text-align:right">${pesos(c.total_ventas)}</td>
+      <td style="text-align:right">${dif}</td>
+      <td style="text-align:right"><button class="mini" onclick="verCierreDetalle(${c.caja_id})">Ver</button></td>
+    </tr>`;
+  }).join('') || '<tr><td colspan="5" style="color:var(--muted)">Sin cajas registradas</td></tr>';
+  $('#modalBody').innerHTML = `<h3>Historial de cierres</h3>
+    <table class="tabla">
+      <tr><td class="sub-h">Caja</td><td class="sub-h">Cajero</td><td class="sub-h">Ventas</td><td class="sub-h">Cuadre</td><td class="sub-h"></td></tr>
+      ${filas}
+    </table>
+    <button class="btn ghost" onclick="cerrarModal()">Cerrar</button>`;
+  abrirModal();
+}
+async function verCierreDetalle(cajaId){
+  const r = await fetch('/api/caja/'+cajaId);
+  if(!r.ok){ toast('No se pudo cargar la caja'); return; }
+  const res = await r.json();
+  const contadoRows = res.contado_cierre!=null ? `
+    <tr><td>Efectivo contado</td><td style="text-align:right">${pesos(res.contado_cierre)}</td></tr>
+    <tr><td><b>Diferencia</b></td><td style="text-align:right"><b>${textoDiferencia(res.descuadre||0)}</b></td></tr>
+    ${filasContadoOtros(res)}` : '';
+  $('#modalBody').innerHTML = `<h3>Caja #${res.caja_id}${res.estado==='abierta'?' (abierta)':''}</h3>
+    ${resumenHTML(res)}
+    <table class="tabla">${contadoRows}</table>
+    <button class="btn primary" onclick="imprimirCierre(${res.caja_id})">🖨 Imprimir cierre</button>
+    <button class="btn ghost" onclick="historialCajas()">Volver</button>`;
+  abrirModal();
+}
+
+// ---------- version movil: pestañas (03-jul) ----------
+// Las 3 columnas del escritorio se vuelven pestañas en pantalla chica. El CSS solo
+// oculta columnas DENTRO del media query <=760px, asi que llamar esto en escritorio
+// es inofensivo (las clases quedan puestas pero no aplican).
+function setTabMovil(i){
+  document.querySelectorAll('.grid > .col').forEach((c,idx)=>c.classList.toggle('mvisible', idx===i));
+  [0,1,2].forEach(n=>{ const b=$('#tabBtn'+n); if(b) b.classList.toggle('on', n===i); });
+  window.scrollTo({top:0});
+}
+// 12-ago-2026: mismo umbral que el @media(max-width:760px) de arriba -- si se cambia uno,
+// se cambia el otro. Existe para no saltar de pestaña en escritorio, donde las 3 columnas
+// ya se ven juntas y mover el scroll seria molesto sin motivo.
+function esPantallaMovil(){
+  return window.matchMedia('(max-width:760px)').matches;
+}
+function actualizarBadgesMovil(){
+  const tp=$('#tabPedidoSub'); if(tp) tp.textContent = pedido.length ? pesos(totalActual||0) : '';
+}
+
+// ---------- Chat del bot en vivo (14-jul-2026: Christian no tenia forma de ver que
+// conversa el bot con los clientes -- esto le baja la ansiedad; el banner rojo avisa
+// si algun pedido de WhatsApp aun no llego a la cola (se reintenta solo). ----------
+let botUltimoId=0, botMensajesSinLeer=0;
+function chatModalAbierto(){
+  // #botChatBody sigue en el DOM tras cerrarModal() (no borra el contenido, solo
+  // oculta) -- por eso hay que exigir TAMBIEN que el modal este visible ('show').
+  return $('#modal').classList.contains('show') && !!document.getElementById('botChatBody');
+}
+function renderTurnosBot(turnos){
+  return turnos.map(t=>{
+    const esBot = t.rol==='asistente';
+    const quien = esBot ? '🤖 Bot' : ('📱 '+(t.telefono||'cliente'));
+    const hora = (t.creado_en||'').slice(11,16);
+    const texto = (t.texto||'').replace(/</g,'&lt;').replace(/\n/g,'<br>');
+    return `<div class="chat-burbuja ${esBot?'bot':'cliente'}">
+      <div class="chat-quien">${quien} · ${hora}</div>
+      <div>${texto}</div></div>`;
+  }).join('');
+}
+function chatModalHTML(turnos){
+  const filas = renderTurnosBot(turnos) || '<div class="vacio">Sin conversaciones todavía.</div>';
+  return `<h3 style="margin-top:0">💬 Conversación del bot (en vivo)</h3>
+    <div id="botChatBody" style="max-height:60vh;overflow-y:auto;display:flex;flex-direction:column;margin-bottom:10px">${filas}</div>
+    <button class="mini" onclick="cerrarModal()">Cerrar</button>`;
+}
+function actualizarBadgeBot(){
+  const b=$('#botBadge'); if(!b) return;
+  if(botMensajesSinLeer>0){ b.textContent = botMensajesSinLeer>9?'9+':botMensajesSinLeer; b.style.display='inline-block'; }
+  else b.style.display='none';
+}
+function beepBot(){
+  try{
+    const ctx = new (window.AudioContext||window.webkitAudioContext)();
+    const o = ctx.createOscillator(), g = ctx.createGain();
+    o.type='sine'; o.frequency.value=880;
+    g.gain.setValueAtTime(0.15, ctx.currentTime);
+    g.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime+0.35);
+    o.connect(g); g.connect(ctx.destination); o.start(); o.stop(ctx.currentTime+0.35);
+  }catch(e){}
+}
+async function abrirChatBot(){
+  botMensajesSinLeer=0; actualizarBadgeBot();
+  let d; try{ d = await (await fetch('/api/bot/conversaciones?desde_id=0')).json(); }catch(e){ d=null; }
+  if(!d || !d.disponible){
+    $('#modalBody').innerHTML = `<h3 style="margin-top:0">💬 Conversación del bot</h3>
+      <div class="vacio">Sin conexión con el bot ahora. Verifica que "Bot Patata.exe" esté encendido.</div>
+      <button class="mini" onclick="cerrarModal()">Cerrar</button>`;
+    abrirModal(false); return;
+  }
+  const turnos = d.turnos||[];
+  botUltimoId = turnos.length ? turnos[turnos.length-1].id : botUltimoId;
+  $('#modalBody').innerHTML = chatModalHTML(turnos);
+  abrirModal(false);
+  const body=$('#botChatBody'); if(body) body.scrollTop = body.scrollHeight;
+}
+function appendChatBot(nuevos){
+  const body = document.getElementById('botChatBody'); if(!body) return;
+  const casiAbajo = body.scrollHeight - body.scrollTop - body.clientHeight < 40;
+  body.insertAdjacentHTML('beforeend', renderTurnosBot(nuevos));
+  if(casiAbajo) body.scrollTop = body.scrollHeight;
+}
+async function pollBot(){
+  let d; try{ d = await (await fetch('/api/bot/conversaciones?desde_id='+botUltimoId)).json(); }catch(e){ return; }
+  const banner = $('#botPendBanner'); const pend = d.pendientes_respaldo||0; const rech = d.rechazados_respaldo||0;
+  const alert = d.alertas_fallidas||0; const casoHum = d.casos_humanos||0;
+  if(banner){
+    banner.style.display = (pend>0||rech>0||alert>0||casoHum>0) ? 'block' : 'none';
+    // 21-jul-2026: el aviso ya NO es "señal muerta". Antes decía "ingrésalo a mano"
+    // y obligaba a releer el chat de WhatsApp. Ahora cada rechazado trae sus botones:
+    // ingresarlo con el detalle YA capturado por el bot, o descartarlo dejando rastro.
+    let h = '';
+    if(pend>0){
+      // 29-jul-2026: esta línea era la única señal muerta que quedaba en el banner --
+      // decía el problema y no ofrecía nada. Ahora cada pendiente trae su conversación,
+      // su pedido rearmable y la salida para cerrarlo.
+      h += `<div style="margin-bottom:4px">⚠️ ${pend} pedido${pend>1?'s':''} de WhatsApp que <b>aún no ${pend>1?'llegan':'llega'}</b> a la cola (se sigue${pend>1?'n':''} reintentando solo${pend>1?'s':''}):</div><div id="botPendLista"></div>`;
+    }
+    if(rech>0){
+      h += `<div style="margin-bottom:4px">❌ ${rech} pedido${rech>1?'s':''} de WhatsApp que el POS <b>rechazó</b>:</div><div id="botRechLista"></div>`;
+    }
+    if(alert>0){
+      // 27-jul-2026 (S2): avisos al jefe que WhatsApp NO pudo entregar (ventana de 24h
+      // cerrada, número caído), incluso después de reintentar -- no pueden depender
+      // de que alguien esté mirando el chat en ese momento.
+      h += `<div style="margin-bottom:4px">📵 ${alert} aviso${alert>1?'s':''} al jefe que WhatsApp <b>no pudo entregar</b>:</div><div id="botAlertaLista"></div>`;
+    }
+    if(casoHum>0){
+      // 15-sep-2026: casos donde el bot derivó a una persona -- CON el WhatsApp ya
+      // mandado, sea que Meta lo haya entregado y leído o no. No basta con que el
+      // envío "se acepte": este panel no depende de que alguien mire el celular.
+      h += `<div style="margin-bottom:4px">🙋 ${casoHum} caso${casoHum>1?'s':''} que el bot <b>derivó a una persona</b>:</div><div id="botCasoHumanoLista"></div>`;
+    }
+    banner.innerHTML = h;
+    if(pend>0) pintarPendientes();
+    if(rech>0) pintarRechazados();
+    if(alert>0) pintarAlertasFallidas();
+    if(casoHum>0) pintarCasosHumanos();
+  }
+  if(!d.disponible) return;
+  const nuevos = d.turnos||[];
+  if(!nuevos.length) return;
+  botUltimoId = nuevos[nuevos.length-1].id;
+  if(chatModalAbierto()){ appendChatBot(nuevos); }
+  else{
+    const nuevosCliente = nuevos.filter(t=>t.rol==='usuario');
+    if(nuevosCliente.length){
+      botMensajesSinLeer += nuevosCliente.length; actualizarBadgeBot(); beepBot();
+      toast('💬 Nuevo mensaje de un cliente por WhatsApp', 3000);
+    }
+  }
+}
+
+// ---------- helpers ----------
+function abrirModal(blocking){ const m=$('#modal'); m.classList.add('show'); m.dataset.block=blocking?'1':''; }
+function cerrarModal(){ const m=$('#modal'); m.dataset.block=''; m.classList.remove('show'); }
+$('#modal').onclick = e=>{ if(e.target.id==='modal' && $('#modal').dataset.block!=='1') cerrarModal(); };
+let toastT; function toast(msg, duracion){ const t=$('#toast'); t.textContent=msg; t.classList.add('show');
+  clearTimeout(toastT); toastT=setTimeout(()=>t.classList.remove('show'),duracion||2600); }
+
+cargarUsuariosLogin();   // arranca en la pantalla de login; el POS (init) corre al autenticar
+</script>
+</body>
+</html>

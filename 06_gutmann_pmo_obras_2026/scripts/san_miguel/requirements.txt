@@ -1,0 +1,7 @@
+openpyxl==3.1.5
+pymupdf==1.28.2
+reportlab==5.0.1
+numpy==2.5.3
+pillow==12.3.0
+scipy==1.18.1
+imageio-ffmpeg==0.6.0

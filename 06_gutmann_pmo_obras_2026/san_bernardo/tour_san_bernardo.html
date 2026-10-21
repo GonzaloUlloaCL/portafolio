@@ -1,0 +1,531 @@
+<title>Recorrido Ampliación San Bernardo</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@500;600;700&family=IBM+Plex+Sans:wght@400;500;600&display=swap">
+<style>
+/* Sala de proyección de obra: el modelo ocupa toda la pantalla; leyenda tipo subtítulo y un reproductor abajo */
+:root{
+  --bg:#e6e9e4;--escena:#dde2dc;--panel:#f7f8f5;--fg:#1c2421;--muted:#5b6862;--line:#ccd3cc;
+  --accent:#1d5c74;--accent-fg:#ffffff;--obra:#d9772b;--velo:rgba(247,248,245,.86);
+  --sombra:0 8px 28px rgba(20,32,28,.18);
+  --f-display:"Barlow Condensed","Arial Narrow",system-ui,sans-serif;
+  --f-body:"IBM Plex Sans",system-ui,-apple-system,"Segoe UI",sans-serif;
+}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){
+  --bg:#121715;--escena:#1b2220;--panel:#1a201e;--fg:#e4eae6;--muted:#97a49d;--line:#2f3934;
+  --accent:#7cc2dc;--accent-fg:#0b1a20;--obra:#f0a061;--velo:rgba(26,32,30,.86);
+  --sombra:0 8px 28px rgba(0,0,0,.5);color-scheme:dark}}
+:root[data-theme="dark"]{
+  --bg:#121715;--escena:#1b2220;--panel:#1a201e;--fg:#e4eae6;--muted:#97a49d;--line:#2f3934;
+  --accent:#7cc2dc;--accent-fg:#0b1a20;--obra:#f0a061;--velo:rgba(26,32,30,.86);
+  --sombra:0 8px 28px rgba(0,0,0,.5);color-scheme:dark}
+*{box-sizing:border-box}
+html,body{height:100%}
+body{background:var(--bg);color:var(--fg);font:15px/1.5 var(--f-body);overflow:hidden;
+  padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px))}
+button{font:inherit;color:inherit;cursor:pointer}
+button:focus-visible,input:focus-visible,summary:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+#vista{position:fixed;inset:0;background:var(--escena);touch-action:none}
+#vista canvas{display:block;width:100%;height:100%}
+
+.cab{position:fixed;z-index:5;left:0;right:0;top:0;display:flex;align-items:center;gap:12px;
+  padding:calc(10px + env(safe-area-inset-top,0px)) max(16px,env(safe-area-inset-right,0px)) 10px max(16px,env(safe-area-inset-left,0px));
+  background:var(--velo);backdrop-filter:blur(8px);border-bottom:1px solid var(--line)}
+.cab .tit{flex:1;min-width:0}
+.cab h1{font:600 22px/1.05 var(--f-display);letter-spacing:.01em;margin:0;text-wrap:balance}
+.cab .sub{font-size:12px;color:var(--muted);letter-spacing:.04em;text-transform:uppercase}
+.btn{border:1px solid var(--line);background:var(--panel);border-radius:8px;padding:7px 12px;font-size:14px;display:inline-flex;align-items:center;gap:6px;white-space:nowrap}
+.btn[aria-pressed="true"]{background:var(--accent);color:var(--accent-fg);border-color:var(--accent)}
+
+.leyenda{position:fixed;z-index:4;left:max(16px,env(safe-area-inset-left,0px));top:calc(78px + env(safe-area-inset-top,0px));
+  width:250px;max-height:calc(100% - 210px - env(safe-area-inset-top,0px) - env(safe-area-inset-bottom,0px));overflow-y:auto;background:var(--velo);backdrop-filter:blur(8px);border:1px solid var(--line);
+  border-left:4px solid var(--obra);border-radius:10px;padding:12px 16px;box-shadow:var(--sombra)}
+.leyenda .num{font:600 13px var(--f-display);letter-spacing:.12em;text-transform:uppercase;color:var(--obra)}
+.leyenda h2{font:600 26px/1.05 var(--f-display);margin:2px 0 6px;text-wrap:balance}
+.leyenda p{margin:0;font-size:14px}
+
+.player{position:fixed;z-index:5;left:0;right:0;bottom:0;background:var(--velo);backdrop-filter:blur(8px);border-top:1px solid var(--line);
+  padding:10px max(16px,env(safe-area-inset-right,0px)) calc(10px + env(safe-area-inset-bottom,0px)) max(16px,env(safe-area-inset-left,0px));
+  display:flex;flex-direction:column;gap:8px}
+.linea{position:relative;height:30px}
+.linea input{position:absolute;inset:8px 0 auto;width:100%;margin:0;accent-color:var(--accent);height:14px}
+.tramos{position:absolute;left:0;right:0;top:0;height:6px;display:flex;gap:2px}
+.tramos button{border:0;padding:0;height:6px;border-radius:3px;background:var(--line);flex:var(--d) 1 0;min-width:4px}
+.tramos button.on{background:var(--obra)}
+.ctrl{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+.ctrl .play{width:46px;height:40px;justify-content:center;font-size:18px;background:var(--accent);color:var(--accent-fg);border-color:var(--accent)}
+.tiempo{font:500 14px var(--f-body);font-variant-numeric:tabular-nums;color:var(--muted);padding:0 4px}
+.cap-actual{font:600 16px var(--f-display);letter-spacing:.02em;min-width:0;flex:1;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+
+.caps[hidden]{display:none}
+.caps{position:fixed;z-index:6;top:0;right:0;bottom:0;width:min(380px,100%);background:var(--panel);border-left:1px solid var(--line);box-shadow:var(--sombra);
+  display:flex;flex-direction:column;padding:calc(14px + env(safe-area-inset-top,0px)) max(16px,env(safe-area-inset-right,0px)) calc(14px + env(safe-area-inset-bottom,0px)) 16px}
+.caps-cab{display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:8px}
+.caps-cab h2{font:600 24px var(--f-display);margin:0}
+.caps ol{list-style:none;margin:0;padding:0;overflow-y:auto;display:flex;flex-direction:column;gap:2px;min-height:0}
+.caps li{border-top:1px solid var(--line);padding:10px 0}
+.caps .ir{display:grid;grid-template-columns:auto 1fr auto;gap:10px;align-items:baseline;width:100%;text-align:left;border:0;background:none;padding:2px 0}
+.caps .ir .n{font:600 15px var(--f-display);color:var(--obra);font-variant-numeric:tabular-nums}
+.caps .ir .t{font:600 19px/1.15 var(--f-display)}
+.caps .ir .d{font-size:13px;color:var(--muted);font-variant-numeric:tabular-nums}
+.caps li.on .ir .t{color:var(--accent)}
+.caps details{margin:6px 0 0 26px;font-size:14px}
+.caps summary{color:var(--muted);font-size:13px;letter-spacing:.04em;text-transform:uppercase}
+.caps ul{margin:6px 0 0;padding-left:18px;color:var(--fg)}
+.caps ul li{border:0;padding:1px 0}
+.nota{font-size:12px;color:var(--muted);margin-top:auto;padding-top:10px}
+
+.tip{position:fixed;z-index:7;pointer-events:none;background:var(--panel);border:1px solid var(--line);border-radius:8px;padding:6px 10px;font-size:14px;box-shadow:var(--sombra);max-width:260px}
+.inicio{position:fixed;z-index:4;left:50%;top:44%;transform:translate(-50%,-50%);border:0;border-radius:999px;padding:16px 26px;
+  background:var(--accent);color:var(--accent-fg);font:600 22px var(--f-display);letter-spacing:.03em;box-shadow:var(--sombra)}
+.sin-textos .leyenda{display:none}
+@media (max-width:640px){
+  .leyenda{width:42%;top:calc(70px + env(safe-area-inset-top,0px));max-height:calc(100% - 240px);padding:8px 10px}
+  .leyenda h2{font-size:18px}
+  .leyenda p{font-size:12.5px;line-height:1.4}
+  .cap-actual{order:9;flex-basis:100%}
+}
+@media (prefers-reduced-motion: reduce){*{transition:none!important}}
+</style>
+
+<div id="vista" aria-label="Modelo 3D de la ampliación"></div>
+
+<header class="cab">
+  <div class="tit"><h1>Ampliación San Bernardo</h1><div class="sub">Covadonga 139 · recorrido de la obra</div></div>
+  <button class="btn" id="bCaps" aria-expanded="false" aria-controls="caps">Capítulos</button>
+</header>
+
+<button class="inicio" id="inicio">▶ Ver el recorrido</button>
+
+<section class="leyenda" id="leyenda" aria-live="polite">
+  <div class="num" id="lNum"></div>
+  <h2 id="lTit"></h2>
+  <p id="lTxt"></p>
+</section>
+
+<aside class="caps" id="caps" hidden>
+  <div class="caps-cab"><h2>Capítulos</h2><button class="btn" id="cCerrar">Cerrar</button></div>
+  <ol id="lista"></ol>
+  <div class="nota">Toca un capítulo para ir a él. Puedes pausar y girar el modelo con el dedo o el mouse en cualquier momento.</div>
+</aside>
+
+<div class="tip" id="tip" hidden></div>
+
+<footer class="player">
+  <div class="linea">
+    <div class="tramos" id="tramos"></div>
+    <input type="range" id="barra" min="0" max="1000" step="1" value="0" aria-label="Línea de tiempo del recorrido">
+  </div>
+  <div class="ctrl">
+    <button class="btn" id="bAnt" aria-label="Capítulo anterior">⏮</button>
+    <button class="btn" id="bAtras" aria-label="Retroceder 10 segundos">↺ 10 s</button>
+    <button class="btn play" id="bPlay" aria-label="Reproducir">▶</button>
+    <button class="btn" id="bSig" aria-label="Capítulo siguiente">⏭</button>
+    <span class="tiempo" id="tiempo">0:00 / 0:00</span>
+    <span class="cap-actual" id="capActual"></span>
+    <button class="btn" id="bRepetir" aria-pressed="false" title="Repetir el capítulo actual en vez de seguir al siguiente">Repetir capítulo</button>
+    <button class="btn" id="bTextos" aria-pressed="true" title="Mostrar u ocultar los textos">Textos</button>
+  </div>
+</footer>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
+<script>
+"use strict";
+const num = (v, d = 2) => v.toLocaleString("es-CL", { minimumFractionDigits: d, maximumFractionDigits: d });
+const esc = s => String(s).replace(/[&<>"]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
+const PEND = [];
+const INCLUYE = [["Instalación de faena (oficina, bodega, pañol, iluminación)", "Empalmes provisorios de luz y agua", "Servicios higiénicos provisorios", "Tala y retiro de árbol"], ["Trazado, replanteo y niveles", "Rebaje de terreno (e = 0,30 m)", "Retiro de escombros"], ["Base estabilizada (e = 0,15)", "Cama de gravilla (e = 0,10)", "Radier H25 e = 10 cm con malla C-92", "Servicio de bomba de hormigón", "Red de agua potable", "Red de alcantarillado"], ["Tabiquería exterior", "Tabiquería interior", "Tabiquería baño", "Tabiquería de cubículos", "Estructura de techo pasillo"], ["Techumbre general", "Aleros (0,40 m)", "Aguas lluvia: canales y hojalatería", "Estructura de cielo"], ["Porcelanato de piso", "Piso antideslizante del corredor", "Guardapolvo", "Pintura de muros", "Pintura de cielo", "Ventanas", "Ventana sanitaria", "Puerta doble", "Puerta simple", "Artefactos sanitarios (4 WC y 4 lavamanos)", "Grifería de agua potable", "Espejos y accesorios", "Aseo durante la obra", "Aseo final"], []];
+
+
+const CX = 7.4, CY = 10.2;
+const V = (x, h, y) => new THREE.Vector3(x - CX, h, -(y - CY));
+const vista = document.getElementById("vista");
+const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
+renderer.setPixelRatio(Math.min(2, window.devicePixelRatio || 1));
+vista.appendChild(renderer.domElement);
+const scene = new THREE.Scene();
+const camera = new THREE.PerspectiveCamera(42, 1, 0.1, 500);
+const controls = new THREE.OrbitControls(camera, renderer.domElement);
+controls.enableDamping = true; controls.maxPolarAngle = Math.PI * 0.49; controls.minDistance = 3; controls.maxDistance = 90;
+scene.add(new THREE.HemisphereLight(0xffffff, 0x8a8f86, 0.85));
+const sol = new THREE.DirectionalLight(0xffffff, 0.75); sol.position.set(-20, 30, 15); scene.add(sol);
+
+const G = {};
+["terreno", "tala", "relleno", "trazado", "rebaje", "capas", "patioBase", "muros", "acero", "techo", "cielo", "piso", "vanos", "banos", "pasto", "cierre", "etiquetas", "marcas"]
+  .forEach(k => { G[k] = new THREE.Group(); scene.add(G[k]); });
+const COL = { tierra: 0xb8a586, existente: 0xb9bdb8, ext: 0xe08a3c, int: 0x5b8fc7, bano: 0x3fa58a, acero: 0x4a4f55,
+  estab: 0xc9b48f, grava: 0x9e9a92, radier: 0xcfd2cc, rebaje: 0xd84a3a, techo: 0x7d8c99, cielo: 0xf1efe8, porc: 0xe9e2d3,
+  anti: 0xb7aea0, vidrio: 0x7fb6d9, puerta: 0x8a6544, blanco: 0xfafafa, pasto: 0x5aa04a, copa: 0x2f6b3a, tronco: 0x6b4a2f,
+  alu: 0xc4c8cc, zinc: 0xa9b1b8, techoC: 0xb9d3e3 };
+const mats = {};
+function mat(c, o = 1) { const k = c + "_" + o; if (!mats[k]) mats[k] = new THREE.MeshStandardMaterial({ color: c, roughness: 0.85, transparent: o < 1, opacity: o }); return mats[k]; }
+const picables = [];
+function caja(x1, y1, x2, y2, h1, h2, color, grupo, info, o = 1) {
+  const m = new THREE.Mesh(new THREE.BoxGeometry(Math.abs(x2 - x1), Math.max(0.005, h2 - h1), Math.abs(y2 - y1)), mat(color, o));
+  m.position.copy(V((x1 + x2) / 2, (h1 + h2) / 2, (y1 + y2) / 2));
+  if (info) { m.userData = info; picables.push(m); }
+  grupo.add(m); return m;
+}
+function shape(pts) { const s = new THREE.Shape(); pts.forEach(([x, y], i) => i ? s.lineTo(x - CX, y - CY) : s.moveTo(x - CX, y - CY)); return s; }
+function losa(pts, h1, h2, color, grupo, info, o = 1, huecos = []) {
+  const s = shape(pts); huecos.forEach(h => s.holes.push(shape(h)));
+  const g = new THREE.ExtrudeGeometry(s, { depth: h2 - h1, bevelEnabled: false }); g.rotateX(-Math.PI / 2);
+  const m = new THREE.Mesh(g, mat(color, o)); m.position.y = h1;
+  if (info) { m.userData = info; picables.push(m); }
+  grupo.add(m); return m;
+}
+const HUECO = [[0, 0], [15, 0], [15, 20], [3.32, 20], [3.32, 17.6], [0, 17.6]];
+const BAJO_TECHO = [[0, 0], [15, 0], [15, 20], [3.32, 20], [3.32, 17.6], [7.5, 17.6], [7.5, 7.5], [0, 7.5]];
+const PATIO = [[0, 7.5], [7.5, 7.5], [7.5, 17.6], [0, 17.6]];
+const NTN = 0.05, FONDO = -0.26;
+losa([[-14, -12], [30, -12], [30, 34], [-14, 34]], -0.6, NTN, COL.tierra, G.terreno, null, 1, [HUECO]);
+const infoExist = { titulo: "Edificio existente (Kitchenette y Oficina 04)", texto: "", cod: [] };
+caja(0, 20.0, 15, 27, NTN, 3.2, COL.existente, G.terreno, infoExist);
+caja(3.42, 19.97, 4.4, 20.0, NTN, NTN + 2.1, COL.puerta, G.terreno, infoExist);
+const tronco = new THREE.Mesh(new THREE.CylinderGeometry(0.18, 0.25, 5, 10), mat(COL.tronco)); tronco.position.copy(V(1.8, 2.5, 18.7)); G.terreno.add(tronco);
+const copa = new THREE.Mesh(new THREE.ConeGeometry(2.2, 6, 12), mat(COL.copa)); copa.position.copy(V(1.8, 7, 18.7)); G.terreno.add(copa);
+copa.userData = { titulo: "Araucaria", texto: "", cod: [] }; picables.push(copa);
+losa(HUECO, FONDO - 0.34, FONDO, COL.tierra, G.terreno);
+const arbol = new THREE.Group(); arbol.position.copy(V(12.3, NTN, 10.32)); G.tala.add(arbol);
+const infoTala = { titulo: "Árbol que se tala (A.1.6)", texto: "", cod: [] };
+const troncoT = new THREE.Mesh(new THREE.CylinderGeometry(0.14, 0.2, 3, 10), mat(COL.tronco)); troncoT.position.y = 1.5;
+const copaT = new THREE.Mesh(new THREE.SphereGeometry(1.6, 14, 10), mat(0x4f8a3c)); copaT.position.y = 3.6;
+[troncoT, copaT].forEach(m => { m.userData = infoTala; picables.push(m); arbol.add(m); });
+losa(HUECO, FONDO, NTN, COL.tierra, G.relleno, { titulo: "Terreno a +0,05", texto: "", cod: [] });
+losa(BAJO_TECHO, FONDO, NTN, COL.rebaje, G.rebaje, { titulo: "Rebaje de terreno", texto: "", cod: [] }, 0.55);
+const RECINTOS = [
+  ["Sala 03", 0.2, 0.2, 6.2, 5.2, "30,00 m²", "B.3"], ["Sala 02", 6.32, 0.2, 14.8, 5.2, "42,40 m²", "B.2"],
+  ["Sala 01", 9.8, 5.32, 14.8, 15.32, "50,00 m²", "B.1"], ["Guardar", 9.8, 15.44, 14.8, 17.4, "9,80 m²", "B.4"],
+  ["Baño 02", 9.8, 17.52, 11.3, 18.82, "1 WC", "B.5"], ["Acceso baños", 9.8, 18.94, 11.3, 20, "abierto al corredor", "B.5"],
+  ["Baño 01", 11.42, 17.52, 14.8, 20, "3 WC", "B.5"],
+];
+const lmat = new THREE.LineBasicMaterial({ color: 0xffffff });
+function linea(pts, h, grupo, m = lmat) { grupo.add(new THREE.Line(new THREE.BufferGeometry().setFromPoints(pts.map(([x, y]) => V(x, h, y))), m)); }
+RECINTOS.forEach(([, x1, y1, x2, y2]) => linea([[x1, y1], [x2, y1], [x2, y2], [x1, y2], [x1, y1]], NTN + 0.02, G.trazado));
+[[0, 0], [15, 0], [15, 20], [3.32, 20], [0, 17.6], [7.5, 7.5], [7.5, 17.6]].forEach(([x, y]) => caja(x - 0.03, y - 0.03, x + 0.03, y + 0.03, NTN, 0.9, 0xf2f2f2, G.trazado));
+losa(BAJO_TECHO, FONDO, FONDO + 0.15, COL.estab, G.capas, { titulo: "Base estabilizada e = 0,15", texto: "", cod: [] });
+losa(BAJO_TECHO, FONDO + 0.15, FONDO + 0.25, COL.grava, G.capas, { titulo: "Cama de gravilla e = 0,10", texto: "", cod: [] });
+losa(BAJO_TECHO, FONDO + 0.25, FONDO + 0.35, COL.radier, G.capas, { titulo: "Radier H25 e = 0,10", texto: "", cod: [] });
+losa(PATIO, FONDO, NTN + 0.02, COL.tierra, G.patioBase, { titulo: "Patio nivelado", texto: "", cod: [] });
+const HM = 3.0, R0 = FONDO + 0.35;
+const MUROS = [
+  ["ext", 0, 0, 6.32, 0.2, "B.3.1"], ["ext", 0, 0.2, 0.2, 5.4, "B.3.1"], ["ext", 0.2, 5.2, 6.32, 5.4, "B.3.1"],
+  ["ext", 6.32, 0, 15, 0.2, "B.2.1"], ["ext", 14.8, 0.2, 15, 5.32, "B.2.1"], ["ext", 6.32, 5.2, 9.8, 5.4, "B.2.1"],
+  ["ext", 14.8, 5.32, 15, 15.44, "B.1.1"], ["ext", 9.6, 5.4, 9.8, 15.32, "B.1.1"],
+  ["ext", 9.6, 15.32, 9.8, 17.4, "B.4.1"], ["ext", 14.8, 15.44, 15, 17.52, "B.4.1"],
+  ["ext", 9.6, 17.4, 9.8, 18.94, "B.5.1"],                    // Baño 02 hacia el corredor: 1,54, y 1,06 abiertos al acceso
+  ["int", 6.2, 0.2, 6.32, 5.2, "B.2.2"], ["int", 9.8, 5.2, 14.8, 5.32, "B.1.2"], ["int", 9.8, 15.32, 14.8, 15.44, "B.4.2"],
+  ["int", 9.8, 17.4, 14.8, 17.52, "B.5.2"],                   // con Guardar, tabique interior: Baño 02 1,62 + Baño 01 3,38
+  ["bano", 11.3, 17.52, 11.42, 20, "B.5.2"], ["bano", 9.8, 18.82, 11.3, 18.94, "B.5.2"],
+  ["ext", 14.8, 17.52, 15, 20, "B.5.1"],                      // el tabique suelto hacia la Oficina 04 queda fuera: es un extra
+];
+const NOM_MURO = { ext: "Tabique exterior", int: "Tabique interior", bano: "Tabique de baño" };
+const DINTEL = R0 + 2.2, DINTEL_V = 2.4 - 0.23;
+const ALTO_EXT = 0.5;
+const VANOS = [];
+const vent = (x1, y1, x2, y2, c, alto = 1.7, h2 = DINTEL_V) => VANOS.push({ t: "v", x1, y1, x2, y2, h1: h2 - alto, h2, c });
+const pta = (x1, y1, x2, y2, c, n, vidrio = false) => VANOS.push({ t: "p", x1, y1, x2, y2, h1: R0, h2: DINTEL, c, n, vidrio });
+vent(1.1, -0.02, 2.9, 0.22, "B.3.8", ALTO_EXT); vent(3.2, -0.02, 5.0, 0.22, "B.3.8", ALTO_EXT);
+vent(9.0, -0.02, 11.0, 0.22, "B.2.9", ALTO_EXT); vent(11.6, -0.02, 13.6, 0.22, "B.2.9", ALTO_EXT);
+[6.52, 9.12, 11.72].forEach(y => vent(14.78, y, 15.02, y + 2, "B.1.9", ALTO_EXT));
+[18.46, 19.29].forEach(y => vent(14.78, y, 15.02, y + 0.6, "B.5.12", 0.5));
+vent(9.58, 17.87, 9.82, 18.47, "B.5.12", 0.5);
+pta(0.2, 5.18, 1.6, 5.42, "B.3.9", "Puerta doble de vidrio Sala 03", true); vent(2.0, 5.18, 2.6, 5.42, "B.3.8");
+pta(6.32, 5.18, 7.72, 5.42, "B.2.10", "Puerta doble de vidrio Sala 02", true); vent(8.12, 5.18, 8.72, 5.42, "B.2.9");
+pta(9.58, 13.92, 9.82, 15.32, "B.1.10", "Puerta doble de vidrio Sala 01", true); vent(9.58, 12.72, 9.82, 13.32, "B.1.9");
+pta(9.58, 16.6, 9.82, 17.4, "B.4.9", "Puerta Guardar");
+pta(9.8, 18.8, 10.55, 18.96, "B.5.13", "Puerta Baño 02"); pta(11.28, 19.2, 11.44, 20, "B.5.13", "Puerta Baño 01");
+MUROS.forEach(([t, x1, y1, x2, y2, c]) => {
+  const info = { titulo: NOM_MURO[t] + " (" + c + ")", texto: "", cod: [] };
+  const ejeX = x2 - x1 >= y2 - y1, a0 = ejeX ? x1 : y1, a1 = ejeX ? x2 : y2;
+  const tramo = (a, b, h1, h2) => { if (b - a < 0.005 || h2 - h1 < 0.005) return;
+    ejeX ? caja(a, y1, b, y2, h1, h2, COL[t], G.muros, info) : caja(x1, a, x2, b, h1, h2, COL[t], G.muros, info); };
+  const cortes = VANOS.filter(v => v.x1 < x2 - 0.001 && v.x2 > x1 + 0.001 && v.y1 < y2 - 0.001 && v.y2 > y1 + 0.001)
+    .map(v => ({ a: Math.max(a0, ejeX ? v.x1 : v.y1), b: Math.min(a1, ejeX ? v.x2 : v.y2), h1: v.h1, h2: v.h2 })).sort((p, q) => p.a - q.a);
+  let p = a0;
+  cortes.forEach(k => { tramo(p, k.a, R0, HM); tramo(k.a, k.b, R0, k.h1); tramo(k.a, k.b, k.h2, HM); p = Math.max(p, k.b); });
+  tramo(p, a1, R0, HM);
+});
+const PILARES = [[3.37, 17.65], [5.46, 17.65], [7.55, 17.65], [7.55, 15.1], [7.55, 12.55], [7.55, 10.0], [7.55, 7.45], [5.05, 7.45], [2.55, 7.45], [0.05, 7.45]];
+PILARES.forEach(([x, y]) => {
+  caja(x - 0.05, y - 0.05, x + 0.05, y + 0.05, R0, HM, COL.acero, G.acero, { titulo: "Pilar 100 × 100 × 3", texto: "", cod: [] });
+  caja(x - 0.13, y - 0.13, x + 0.13, y + 0.13, R0, R0 + 0.015, COL.acero, G.acero);
+});
+const VIGAS = [[3.32, 17.6, 7.6, 17.7], [7.5, 7.4, 7.6, 17.7], [0, 7.4, 7.6, 7.5], [0, 5.4, 0.1, 7.5]];
+VIGAS.forEach(([x1, y1, x2, y2]) => caja(x1, y1, x2, y2, HM - 0.1, HM, COL.acero, G.acero, { titulo: "Viga de acero", texto: "", cod: [] }));
+const TA = HM + 1.0, TB = HM + 0.2, AL = 0.4;
+const XO = 15 + AL, XI = 7.5 - AL, YI = 7.5 + AL, YN = 17.6 - AL;
+const infoTechoS = { titulo: "Techumbre de salas, Guardar y baños", texto: "", cod: [] };
+const infoTechoC = { titulo: "Techumbre del corredor en U", texto: "", cod: [] };
+const hS = (x, y) => TB + (y + AL) * (TA - TB) / (YI + AL), hE = (x, y) => TA - (x - XI) * (TA - TB) / (XO - XI);
+const hN = (x, y) => TA - (y - YN) * (TA - TB) / (20 - YN);
+function techo(pts, h, sala) {
+  const v = pts.map(([x, y]) => V(x, h(x, y), y)), tri = [];
+  for (let i = 1; i < v.length - 1; i++) tri.push(v[0], v[i], v[i + 1]);
+  const g = new THREE.BufferGeometry().setFromPoints(tri); g.computeVertexNormals();
+  const m = new THREE.Mesh(g, new THREE.MeshStandardMaterial({ color: sala ? COL.techo : COL.techoC, roughness: sala ? 0.8 : 0.25, side: THREE.DoubleSide,
+    transparent: !sala, opacity: sala ? 1 : 0.42, depthWrite: sala }));
+  m.userData = sala ? infoTechoS : infoTechoC; picables.push(m); G.techo.add(m);
+}
+const xS = y => XI + (YI - y) * (XO - XI) / (YI + AL), yS = x => YI - (x - XI) * (YI + AL) / (XO - XI);
+const yNE = x => YN + (x - XI) * (20 - YN) / (XO - XI);
+techo([[-AL, -AL], [XO, -AL], [xS(5.4), 5.4], [-AL, 5.4]], hS, true);
+techo([[-AL, 5.4], [xS(5.4), 5.4], [XI, YI], [-AL, YI]], hS, false);
+techo([[XO, -AL], [XO, 20], [9.6, yNE(9.6)], [9.6, yS(9.6)]], hE, true);
+techo([[XI, YI], [9.6, yS(9.6)], [9.6, yNE(9.6)], [XI, YN]], hE, false);
+techo([[9.6, yNE(9.6)], [XO, 20], [9.6, 20]], hN, true);
+techo([[3.32 - AL, YN], [XI, YN], [9.6, yNE(9.6)], [9.6, 20], [3.32 - AL, 20]], hN, false);
+const canal = (a, b) => { const g = new THREE.BufferGeometry().setFromPoints([a, b]); G.techo.add(new THREE.Line(g, new THREE.LineBasicMaterial({ color: 0x2b6cb0 }))); };
+canal(V(-AL, TB - 0.05, -AL), V(XO, TB - 0.05, -AL)); canal(V(XO, TB - 0.05, -AL), V(XO, TB - 0.05, 20)); canal(V(3.32 - AL, TB - 0.05, 20), V(XO, TB - 0.05, 20));
+RECINTOS.forEach(([n, x1, y1, x2, y2]) => caja(x1, y1, x2, y2, 2.4, 2.41, COL.cielo, G.cielo, { titulo: "Cielo de " + n, texto: "", cod: [] }, 0.9));
+RECINTOS.forEach(([n, x1, y1, x2, y2, s, sec]) => caja(x1, y1, x2, y2, R0, R0 + 0.012, COL.porc, G.piso,
+  { titulo: n + " · " + s, texto: "", cod: [] }));
+const infoCorr = { titulo: "Corredor cubierto", texto: "", cod: [] };
+[[0, 5.4, 9.6, 7.5], [7.5, 7.5, 9.6, 20], [3.32, 17.6, 7.5, 20]].forEach(([x1, y1, x2, y2]) => caja(x1, y1, x2, y2, R0, R0 + 0.012, COL.anti, G.piso, infoCorr));
+losa(PATIO, NTN + 0.02, NTN + 0.05, COL.pasto, G.pasto, { titulo: "Patio · pasto sintético", texto: "", cod: [] });
+VANOS.forEach(v => {
+  const ejeX = v.x2 - v.x1 >= v.y2 - v.y1, a = ejeX ? v.x1 : v.y1, b = ejeX ? v.x2 : v.y2, cm = ejeX ? (v.y1 + v.y2) / 2 : (v.x1 + v.x2) / 2;
+  const box = (p, q, h1, h2, e, col, info, o) => ejeX ? caja(p, cm - e / 2, q, cm + e / 2, h1, h2, col, G.vanos, info, o) : caja(cm - e / 2, p, cm + e / 2, q, h1, h2, col, G.vanos, info, o);
+  const med = num(b - a) + " × " + num(v.h2 - v.h1);
+  const info = v.t === "v"
+    ? { titulo: "Ventana " + med, texto: "", cod: [] }
+    : { titulo: v.n + " " + med, texto: "", cod: [] };
+  const f = 0.04;
+  if (v.t === "v") {
+    box(a + f, b - f, v.h1 + f, v.h2 - f, 0.02, COL.vidrio, info, 0.55);
+    box(a, b, v.h1, v.h1 + f, 0.06, COL.alu, info); box(a, b, v.h2 - f, v.h2, 0.06, COL.alu, info);
+    box(a, a + f, v.h1, v.h2, 0.06, COL.alu, info); box(b - f, b, v.h1, v.h2, 0.06, COL.alu, info);
+  } else {
+    const hojas = b - a > 1.2 ? 2 : 1, w = (b - a - 2 * f) / hojas;
+    for (let i = 0; i < hojas; i++) box(a + f + i * w + 0.005, a + f + (i + 1) * w - 0.005, v.h1, v.h2 - f, 0.045, v.vidrio ? COL.vidrio : COL.puerta, info, v.vidrio ? 0.55 : 1);
+    box(a, b, v.h2 - f, v.h2, 0.1, COL.alu, info); box(a, a + f, v.h1, v.h2, 0.1, COL.alu, info); box(b - f, b, v.h1, v.h2, 0.1, COL.alu, info);
+  }
+});
+const infoArt = { titulo: "Artefactos sanitarios", texto: "", cod: [] };
+const infoCub = { titulo: "Cubículos del Baño 01", texto: "", cod: [] };
+[[17.52, 18.35], [18.35, 19.17], [19.17, 20]].forEach(([a, b], i) => {
+  const c = (a + b) / 2;
+  caja(14.15, c - 0.2, 14.8, c + 0.2, R0, R0 + 0.42, COL.blanco, G.banos, infoArt);
+  if (i) caja(13.73, a - 0.015, 14.8, a + 0.015, R0 + 0.15, 2.0, 0xd9d4c7, G.banos, infoCub);
+  caja(13.71, a + 0.08, 13.75, b - 0.08, R0 + 0.15, 2.0, 0xcfc6b5, G.banos, infoCub);
+});
+[17.85, 18.4, 18.95].forEach(y => caja(11.42, y - 0.24, 11.85, y + 0.24, 0.8, 0.88, COL.blanco, G.banos, infoArt));
+caja(10.65, 17.62, 11.3, 18.02, R0, R0 + 0.42, COL.blanco, G.banos, infoArt); caja(10.86, 18.12, 11.3, 18.56, 0.8, 0.88, COL.blanco, G.banos, infoArt);
+const HC = 2.5, cv = document.createElement("canvas"); cv.width = 64; cv.height = 4;
+{ const x = cv.getContext("2d"); x.fillStyle = "#b4bcc3"; x.fillRect(0, 0, 64, 4); x.fillStyle = "#7f8890"; x.fillRect(28, 0, 8, 4); x.fillStyle = "#d3d9de"; x.fillRect(36, 0, 4, 4); }
+function zinc(x1, y1, x2, y2, info) {
+  const largo = Math.max(x2 - x1, y2 - y1), t = new THREE.CanvasTexture(cv); t.wrapS = THREE.RepeatWrapping; t.repeat.set(largo / 0.17, 1);
+  const m = caja(x1, y1, x2, y2, NTN, NTN + HC, COL.zinc, G.cierre, info);
+  m.material = new THREE.MeshStandardMaterial({ map: t, roughness: 0.5, metalness: 0.3 });
+  return m;
+}
+function cierre(x1, y1, x2, y2, info) { // línea recta en x o en y, con pilares cada ≤ 2,00 y tres travesaños
+  const ejeX = Math.abs(x2 - x1) > Math.abs(y2 - y1), L = ejeX ? Math.abs(x2 - x1) : Math.abs(y2 - y1), n = Math.ceil(L / 2);
+  for (let i = 0; i <= n; i++) { const x = x1 + (x2 - x1) * i / n, y = y1 + (y2 - y1) * i / n; caja(x - 0.025, y - 0.025, x + 0.025, y + 0.025, NTN, NTN + HC, COL.acero, G.cierre, info); }
+  [0.15, HC / 2, HC - 0.05].forEach(h => caja(Math.min(x1, x2) - (ejeX ? 0 : 0.025), Math.min(y1, y2) - (ejeX ? 0.025 : 0), Math.max(x1, x2) + (ejeX ? 0 : 0.025), Math.max(y1, y2) + (ejeX ? 0.025 : 0), NTN + h - 0.025, NTN + h + 0.025, COL.acero, G.cierre, info));
+  ejeX ? zinc(Math.min(x1, x2), y1 + 0.025, Math.max(x1, x2), y1 + 0.03, info) : zinc(x1 + 0.025, Math.min(y1, y2), x1 + 0.03, Math.max(y1, y2), info);
+}
+cierre(-0.03, 5.4, -0.03, 20.0, { titulo: "Cierre provisorio", texto: "", cod: [] });
+cierre(-4.3, 0.03, 0, 0.03, { titulo: "Portón 4,30", texto: "", cod: [] });
+function etiqueta(texto, x, h, y, grupo, esc = 1) {
+  const c = document.createElement("canvas"), ctx = c.getContext("2d"); const f = 44;
+  ctx.font = "600 " + f + "px system-ui,sans-serif"; const w = Math.ceil(ctx.measureText(texto).width) + 28;
+  c.width = w; c.height = f + 24; ctx.font = "600 " + f + "px system-ui,sans-serif";
+  ctx.fillStyle = "rgba(255,255,255,.9)"; ctx.beginPath(); ctx.roundRect ? ctx.roundRect(0, 0, w, c.height, 14) : ctx.rect(0, 0, w, c.height); ctx.fill();
+  ctx.fillStyle = "#1d2420"; ctx.textBaseline = "middle"; ctx.fillText(texto, 14, c.height / 2 + 2);
+  const s = new THREE.Sprite(new THREE.SpriteMaterial({ map: new THREE.CanvasTexture(c), depthTest: false }));
+  s.scale.set(w / c.height * 0.7 * esc, 0.7 * esc, 1); s.position.copy(V(x, h, y)); s.renderOrder = 5; grupo.add(s); return s;
+}
+RECINTOS.forEach(([n, x1, y1, x2, y2]) => { if (n !== "Acceso baños") etiqueta(n, (x1 + x2) / 2, 3.5, (y1 + y2) / 2, G.etiquetas, n.startsWith("Baño") ? 0.8 : 1); });
+etiqueta("Patio", 3.8, 1.2, 12.3, G.etiquetas); etiqueta("Corredor", 8.6, 3.5, 11, G.etiquetas, 0.85);
+const etExist = etiqueta("Edificio existente", 7.4, 4.4, 23.5, G.terreno);
+etiqueta("Kitchenette", 1.7, 3.6, 21.7, G.terreno, 0.75); etiqueta("Oficina 04", 10.1, 3.6, 22.6, G.terreno, 0.75);
+etiqueta("Cierre provisorio", -0.6, HC + 0.6, 13, G.cierre, 0.85); etiqueta("Portón 4,30", -2.15, HC + 0.6, -0.4, G.cierre, 0.85); const etArau = etiqueta("Araucaria (no se tala)", 1.8, 10.6, 18.7, G.terreno, 0.9);
+etiqueta("N.T.N. +0,05", 7.4, 1.2, -2.5, G.relleno, 0.9); etiqueta("Fondo −0,26", 7.4, 1.0, -2.5, G.rebaje, 0.9);
+function marca(i) {
+  const c = document.createElement("canvas"); c.width = c.height = 96; const ctx = c.getContext("2d");
+  ctx.fillStyle = "#b3261e"; ctx.beginPath(); ctx.arc(48, 48, 42, 0, 7); ctx.fill(); ctx.lineWidth = 6; ctx.strokeStyle = "#fff"; ctx.stroke();
+  ctx.fillStyle = "#fff"; ctx.font = "700 46px system-ui,sans-serif"; ctx.textAlign = "center"; ctx.textBaseline = "middle"; ctx.fillText(String(i + 1), 48, 52);
+  const s = new THREE.Sprite(new THREE.SpriteMaterial({ map: new THREE.CanvasTexture(c), depthTest: false }));
+  s.scale.set(0.9, 0.9, 1); s.renderOrder = 9; s.userData = { pend: i }; return s;
+}
+const marcas = PEND.map((p, i) => { const s = marca(i); s.position.copy(V(p.at[0], p.at[1], p.at[2])); G.marcas.add(s); return s; });
+
+
+
+// ------------------------------------------------------------------ capítulos de la película
+const O = [0, 0.5, 0];
+const P3 = (x, h, y) => [x - CX, h, -(y - CY)];       // punto del plano (x, y en metros) a la escena
+const k = (t, r, h, a) => ({ t, r, h, a });           // cuadro clave: objetivo, distancia, altura y ángulo (grados)
+const CAPS = [
+  { n: "El terreno hoy", dur: 7, ver: ["terreno", "tala", "relleno", "trazado"], anim: [["tala", "tala", 0.25, 0.7], ["trazado", "sube", 0.72, 1, NTN]], kf: [k(P3(12.2, 2, 10.2), 11, 5, 70), k(O, 30, 15, 10)],
+    txt: "El terreno queda junto al edificio existente, donde están la Kitchenette y la Oficina 04. El árbol que queda donde irá la Sala 01 se tala; la araucaria se conserva y no se pasan instalaciones bajo tierra cerca de ella. Luego se marca en el suelo el trazado de los recintos." },
+  { n: "Cierre y rebaje", dur: 7, ver: ["terreno", "rebaje", "patioBase", "trazado", "cierre"],
+    anim: [["cierre", "sube", 0, 0.3, NTN], ["rebaje", "baja", 0.35, 0.9, FONDO], ["trazado", "hunde", 0.35, 0.9, FONDO - NTN]],
+    kf: [k(P3(2, 0.5, 4), 9, 4, -75), k(O, 22, 10, -15)],
+    txt: "Se cierra la obra por el poniente con un cierre provisorio de zinc de 2,50 m de alto y un portón de 4,30 m. Sobre el trazado se rebaja el terreno para que el piso nuevo quede al mismo nivel que el existente, sin rampas." },
+  { n: "Base y radier", dur: 7, ver: ["terreno", "capas", "patioBase", "cierre"],
+    anim: [["capas", "sube", 0.1, 0.8, FONDO]], kf: [k(P3(11, 0, 12), 9, 5, 140), k(O, 24, 12, 75)],
+    txt: "Bajo salas, bodega, baños y corredores van una base estabilizada de 15 cm, una cama de gravilla de 10 cm y un radier de hormigón de 10 cm con malla. Las redes de agua y alcantarillado se instalan antes del radier. El patio se nivela para el pasto sintético." },
+  { n: "Estructura", dur: 7, ver: ["terreno", "capas", "patioBase", "muros", "acero", "etiquetas", "cierre"],
+    anim: [["muros", "sube", 0.05, 0.6, R0], ["acero", "sube", 0.4, 0.85, R0], ["etiquetas", "aparece", 0.85, 0.9]], kf: [k(P3(12, 1, 10), 9, 4, 60), k(O, 26, 13, 15)],
+    txt: "Tabiques de 3,00 m de alto: en naranjo los exteriores, en azul los interiores y en verde los de baños. El corredor se apoya en pilares y vigas de acero, con placa atornillada sobre el radier." },
+  { n: "Techumbre", dur: 7, ver: ["terreno", "capas", "patioBase", "muros", "acero", "techo", "cierre"], techo: true,
+    anim: [["techo", "cae", 0.1, 0.75]], kf: [k(O, 13, 12, -150), k(O, 30, 18, -80)],
+    txt: "Las aguas caen hacia afuera, con canal en el borde exterior. Sobre las salas la cubierta es opaca y sobre el corredor en U es traslúcida. Aleros de 0,40 m por los dos bordes." },
+  { n: "Terminaciones", dur: 7, ver: ["terreno", "capas", "patioBase", "muros", "acero", "piso", "vanos", "banos", "pasto", "etiquetas", "cierre"],
+    anim: [["piso", "sube", 0, 0.3, R0], ["pasto", "sube", 0.1, 0.4, NTN], ["vanos", "sube", 0.3, 0.7, R0], ["banos", "sube", 0.55, 0.9, R0]],
+    kf: [k(P3(7.4, 1.4, 1), 8, 2, 0), k(O, 23, 11, 45)],
+    txt: "Porcelanato en salas, bodega y baños, piso antideslizante en los corredores y pasto sintético en el patio. Ventanas de aluminio altas en las fachadas, de 0,50 m, y puertas de 2,20 m. El Baño 01 tiene 3 cubículos y el Baño 02 uno; los dos se abren hacia el corredor." },
+  { n: "La obra terminada", dur: 7, ver: ["terreno", "capas", "patioBase", "muros", "acero", "piso", "vanos", "banos", "pasto", "techo", "etiquetas", "cierre"], techo: true,
+    kf: [k(O, 14, 8, 200), k(O, 30, 16, 270), k(O, 32, 17, 340)],
+    txt: "La ampliación completa: tres salas de capacitación, bodega, dos baños y el corredor cubierto en U alrededor del patio con la araucaria." },
+];
+const LECTURA = 2;                                    // segundos quietos al final de cada capítulo para leer el texto
+const INI = []; let TOTAL = 0;
+CAPS.forEach(c => { INI.push(TOTAL); TOTAL += c.dur; });
+
+// ------------------------------------------------------------------ reproductor
+const $ = id => document.getElementById(id);
+let t = 0, jugando = false, manual = false, capAct = -1, repetir = false, mezcla = null;
+const fmt = s => Math.floor(s / 60) + ":" + String(Math.floor(s % 60)).padStart(2, "0");
+const capDe = s => { let i = 0; while (i < CAPS.length - 1 && s >= INI[i + 1]) i++; return i; };
+const ease = f => f * f * (3 - 2 * f);
+
+function camara(s) {
+  const i = capDe(s), c = CAPS[i], u = Math.min(1, Math.max(0, (s - INI[i]) / (c.dur - LECTURA))), n = c.kf.length - 1;
+  const x = u * n, j = Math.min(n - 1, Math.floor(x)), f = ease(x - j), A = c.kf[j], B = c.kf[j + 1];
+  const L = (a, b) => a + (b - a) * f;
+  const tg = new THREE.Vector3(L(A.t[0], B.t[0]), L(A.t[1], B.t[1]), L(A.t[2], B.t[2]));
+  const r = L(A.r, B.r), h = L(A.h, B.h), a = L(A.a, B.a) * Math.PI / 180;
+  return { pos: tg.clone().add(new THREE.Vector3(r * Math.sin(a), h, r * Math.cos(a))), tg };
+}
+// lo que se construye en el capítulo: "sube" crece desde su base, "baja" se encoge hasta el fondo, "cae" se posa desde arriba
+// "hunde" baja entero lo que se indica (en metros) y "tala" vuelca el árbol sobre su base hasta sacarlo
+const ANIMADOS = [...new Set(CAPS.flatMap(c => (c.anim || []).map(a => a[0])))];
+function obra(s) {
+  const i = capDe(s), c = CAPS[i], u = Math.min(1, Math.max(0, (s - INI[i]) / (c.dur - LECTURA)));
+  ANIMADOS.forEach(g => { G[g].scale.y = 1; G[g].position.y = 0; G[g].children.forEach(o => { if (o.isSprite) o.material.opacity = 1; if (o.isGroup) o.rotation.z = 0; }); });
+  (c.anim || []).forEach(([g, tipo, d, h, base = 0]) => {
+    const f = ease(Math.min(1, Math.max(0, (u - d) / (h - d)))), grupo = G[g];
+    if (tipo === "cae") { grupo.position.y = 6 * (1 - f); return; }
+    if (tipo === "hunde") { grupo.position.y = base * f; return; }
+    if (tipo === "tala") { grupo.children.forEach(o => { if (o.isGroup) o.rotation.z = -1.5 * f * f; }); grupo.visible = f < 1; return; }
+    const e = tipo === "baja" ? 1 - f : f;
+    if (tipo !== "aparece") { grupo.scale.y = Math.max(0.001, e); grupo.position.y = base * (1 - grupo.scale.y); }
+    if (tipo === "baja" || tipo === "sube") grupo.visible = e > 0.01; // lo que aún no sube no se ve (las líneas del trazado son planas)
+    grupo.children.forEach(o => { if (o.isSprite) { o.material.transparent = true; o.material.opacity = tipo === "aparece" ? f : e >= 0.999 ? 1 : 0; } });
+  });
+}
+function mostrar(i) {
+  const c = CAPS[i];
+  Object.keys(G).forEach(g => { if (g !== "marcas") G[g].visible = c.ver.includes(g); });
+  G.techo.visible = !!c.techo; G.cielo.visible = false;
+  etExist.visible = etArau.visible = i < 2;
+  $("lNum").textContent = "Capítulo " + (i + 1) + " de " + CAPS.length;
+  $("lTit").textContent = c.n; $("lTxt").textContent = c.txt; $("capActual").textContent = (i + 1) + ". " + c.n;
+  document.querySelectorAll("#tramos button").forEach((b, j) => b.classList.toggle("on", j <= i));
+  document.querySelectorAll("#lista > li").forEach((li, j) => li.classList.toggle("on", j === i));
+}
+function ir(s, dejarManual) {
+  t = Math.max(0, Math.min(TOTAL, s));
+  if (!dejarManual) { manual = false; mezcla = null; }
+  pintar();
+}
+function pintar() {
+  const i = capDe(t);
+  if (i !== capAct) { capAct = i; mostrar(i); }
+  $("barra").value = Math.round(t / TOTAL * 1000);
+  $("tiempo").textContent = fmt(t) + " / " + fmt(TOTAL);
+}
+function play(v) {
+  if (v && t >= TOTAL - 0.01) t = 0;
+  jugando = v; $("inicio").hidden = true;
+  $("bPlay").textContent = v ? "❚❚" : "▶"; $("bPlay").setAttribute("aria-label", v ? "Pausar" : "Reproducir");
+  if (v && manual) { mezcla = { p: camera.position.clone(), g: controls.target.clone(), t0: performance.now() }; manual = false; }
+}
+
+// línea de tiempo con un tramo por capítulo
+$("tramos").innerHTML = CAPS.map((c, i) => `<button style="--d:${c.dur}" title="${i + 1}. ${esc(c.n)}" aria-label="Ir al capítulo ${i + 1}: ${esc(c.n)}" data-i="${i}"></button>`).join("");
+$("tramos").addEventListener("click", e => { const b = e.target.closest("button"); if (b) ir(INI[+b.dataset.i]); });
+$("barra").addEventListener("input", e => ir(e.target.value / 1000 * TOTAL));
+$("bPlay").onclick = () => play(!jugando);
+$("inicio").onclick = () => play(true);
+$("bAtras").onclick = () => ir(t - 10);
+$("bAnt").onclick = () => { const i = capDe(t); ir(t - INI[i] > 1.5 ? INI[i] : INI[Math.max(0, i - 1)]); };
+$("bSig").onclick = () => { const i = capDe(t); if (i < CAPS.length - 1) ir(INI[i + 1]); };
+$("bRepetir").onclick = () => { repetir = !repetir; $("bRepetir").setAttribute("aria-pressed", String(repetir)); };
+$("bTextos").onclick = () => { const on = document.body.classList.toggle("sin-textos"); $("bTextos").setAttribute("aria-pressed", String(!on)); tam(); };
+document.addEventListener("keydown", e => {
+  if (e.target.closest("input,button,summary") && e.key === " ") return;
+  if (e.key === " ") { e.preventDefault(); play(!jugando); }
+  else if (e.key === "ArrowLeft") ir(t - 5);
+  else if (e.key === "ArrowRight") ir(t + 5);
+});
+
+// lista de capítulos con lo que incluye cada uno
+$("lista").innerHTML = CAPS.map((c, i) => {
+  const inc = (INCLUYE && INCLUYE[i]) || [];
+  return `<li><button class="ir" data-i="${i}"><span class="n">${String(i + 1).padStart(2, "0")}</span><span class="t">${esc(c.n)}</span><span class="d">${fmt(c.dur)}</span></button>
+    ${inc.length ? `<details><summary>Qué incluye</summary><ul>${inc.map(d => `<li>${esc(d)}</li>`).join("")}</ul></details>` : ""}</li>`;
+}).join("");
+$("lista").addEventListener("click", e => {
+  const b = e.target.closest(".ir"); if (!b) return;
+  ir(INI[+b.dataset.i]);
+  if (window.innerWidth < 900) abrirCaps(false);
+});
+function abrirCaps(v) { $("caps").hidden = !v; $("bCaps").setAttribute("aria-expanded", String(v)); }
+$("bCaps").onclick = () => abrirCaps($("caps").hidden);
+$("cCerrar").onclick = () => abrirCaps(false);
+
+// girar el modelo a mano pausa la película; al reanudar, la cámara vuelve suave al recorrido
+controls.addEventListener("start", () => { manual = true; if (jugando) play(false); });
+
+// tocar una pieza muestra su nombre
+const ray = new THREE.Raycaster(), ptr = new THREE.Vector2(); let abajo = null, tTip;
+renderer.domElement.addEventListener("pointerdown", e => abajo = [e.clientX, e.clientY]);
+renderer.domElement.addEventListener("pointerup", e => {
+  if (!abajo || Math.hypot(e.clientX - abajo[0], e.clientY - abajo[1]) > 6) return;
+  const r = renderer.domElement.getBoundingClientRect();
+  ptr.set((e.clientX - r.left) / r.width * 2 - 1, -((e.clientY - r.top) / r.height) * 2 + 1);
+  ray.setFromCamera(ptr, camera);
+  const vis = o => { for (let n = o; n; n = n.parent) if (!n.visible) return false; return true; };
+  const h = ray.intersectObjects(picables.filter(vis))[0], tip = $("tip");
+  if (!h || !h.object.userData.titulo) { tip.hidden = true; return; }
+  tip.textContent = h.object.userData.titulo.replace(/\s*\([A-D]\.\d+\.\d+\)/g, "");
+  tip.style.left = Math.min(window.innerWidth - 270, e.clientX + 12) + "px"; tip.style.top = Math.max(70, e.clientY - 40) + "px";
+  tip.hidden = false; clearTimeout(tTip); tTip = setTimeout(() => tip.hidden = true, 3000);
+});
+
+function tam() {
+  $("leyenda").style.top = document.querySelector(".cab").getBoundingClientRect().bottom + 12 + "px"; // bajo el encabezado, aunque ocupe dos líneas
+  const W = window.innerWidth, H = window.innerHeight, ley = $("leyenda").getBoundingClientRect();
+  const dx = document.body.classList.contains("sin-textos") ? 0 : -(ley.right / 2);
+  renderer.setSize(W, H); camera.aspect = W / H; camera.setViewOffset(W, H, dx, 0, W, H); camera.updateProjectionMatrix();
+}
+window.addEventListener("resize", tam);
+
+let previo = performance.now();
+function bucle(ahora) {
+  const dt = Math.min(0.1, (ahora - previo) / 1000); previo = ahora;
+  if (jugando) {
+    t += dt;
+    const i = capDe(Math.min(t, TOTAL - 1e-6));
+    if (repetir && t >= INI[i] + CAPS[i].dur - 0.02) t = INI[i];
+    if (t >= TOTAL) { t = TOTAL; play(false); }
+    pintar();
+  }
+  if (!manual) {
+    const c = camara(Math.min(t, TOTAL - 1e-6));
+    if (mezcla) {
+      const f = ease(Math.min(1, (ahora - mezcla.t0) / 900));
+      camera.position.lerpVectors(mezcla.p, c.pos, f); controls.target.lerpVectors(mezcla.g, c.tg, f);
+      if (f >= 1) mezcla = null;
+    } else { camera.position.copy(c.pos); controls.target.copy(c.tg); }
+  }
+  obra(Math.min(t, TOTAL - 1e-6));
+  controls.update(); renderer.render(scene, camera); requestAnimationFrame(bucle);
+}
+tam(); ir(0); requestAnimationFrame(bucle);
+</script>

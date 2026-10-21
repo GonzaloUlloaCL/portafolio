@@ -1,0 +1,664 @@
+<meta charset="utf-8">
+<title>Recorrido Preuniversitario Talca</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@500;600;700&family=IBM+Plex+Sans:wght@400;500;600&display=swap">
+<style>
+/* Base: el tour del Dren NEWAIR (película con capítulos). Se suma la caminata por dentro: joystick, mini plano, «Ir a» */
+:root{
+  --bg:#e6e9e4;--escena:#dde2dc;--panel:#f7f8f5;--fg:#1c2421;--muted:#5b6862;--line:#ccd3cc;
+  --accent:#1d5c74;--accent-fg:#ffffff;--obra:#d9772b;--velo:rgba(247,248,245,.86);
+  --sombra:0 8px 28px rgba(20,32,28,.18);
+  --f-display:"Barlow Condensed","Arial Narrow",system-ui,sans-serif;
+  --f-body:"IBM Plex Sans",system-ui,-apple-system,"Segoe UI",sans-serif;
+}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){
+  --bg:#121715;--escena:#1b2220;--panel:#1a201e;--fg:#e4eae6;--muted:#97a49d;--line:#2f3934;
+  --accent:#7cc2dc;--accent-fg:#0b1a20;--obra:#f0a061;--velo:rgba(26,32,30,.86);
+  --sombra:0 8px 28px rgba(0,0,0,.5);color-scheme:dark}}
+:root[data-theme="dark"]{
+  --bg:#121715;--escena:#1b2220;--panel:#1a201e;--fg:#e4eae6;--muted:#97a49d;--line:#2f3934;
+  --accent:#7cc2dc;--accent-fg:#0b1a20;--obra:#f0a061;--velo:rgba(26,32,30,.86);
+  --sombra:0 8px 28px rgba(0,0,0,.5);color-scheme:dark}
+*{box-sizing:border-box}
+html,body{height:100%}
+body{background:var(--bg);color:var(--fg);font:15px/1.5 var(--f-body);overflow:hidden;
+  padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px))}
+button,select{font:inherit;color:inherit;cursor:pointer}
+button:focus-visible,input:focus-visible,summary:focus-visible,select:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+#vista{position:fixed;inset:0;background:var(--escena);touch-action:none}
+#vista canvas{display:block;width:100%;height:100%}
+
+.cab{position:fixed;z-index:5;left:0;right:0;top:0;display:flex;align-items:center;gap:8px;
+  padding:calc(10px + env(safe-area-inset-top,0px)) max(16px,env(safe-area-inset-right,0px)) 10px max(16px,env(safe-area-inset-left,0px));
+  background:var(--velo);backdrop-filter:blur(8px);border-bottom:1px solid var(--line)}
+.cab .tit{flex:1;min-width:0}
+.cab h1{font:600 22px/1.05 var(--f-display);letter-spacing:.01em;margin:0;text-wrap:balance}
+.cab .sub{font-size:12px;color:var(--muted);letter-spacing:.04em;text-transform:uppercase}
+.btn{border:1px solid var(--line);background:var(--panel);border-radius:8px;padding:7px 12px;font-size:14px;display:inline-flex;align-items:center;gap:6px;white-space:nowrap}
+.btn[aria-pressed="true"],.btn.prim{background:var(--accent);color:var(--accent-fg);border-color:var(--accent)}
+
+.leyenda{position:fixed;z-index:4;left:max(16px,env(safe-area-inset-left,0px));top:calc(78px + env(safe-area-inset-top,0px));
+  width:250px;max-height:calc(100% - 210px - env(safe-area-inset-top,0px) - env(safe-area-inset-bottom,0px));overflow-y:auto;background:var(--velo);backdrop-filter:blur(8px);border:1px solid var(--line);
+  border-left:4px solid var(--obra);border-radius:10px;padding:12px 16px;box-shadow:var(--sombra)}
+.leyenda .num{font:600 13px var(--f-display);letter-spacing:.12em;text-transform:uppercase;color:var(--obra)}
+.leyenda h2{font:600 26px/1.05 var(--f-display);margin:2px 0 6px;text-wrap:balance}
+.leyenda p{margin:0;font-size:14px}
+
+.player{position:fixed;z-index:5;left:0;right:0;bottom:0;background:var(--velo);backdrop-filter:blur(8px);border-top:1px solid var(--line);
+  padding:10px max(16px,env(safe-area-inset-right,0px)) calc(10px + env(safe-area-inset-bottom,0px)) max(16px,env(safe-area-inset-left,0px));
+  display:flex;flex-direction:column;gap:8px}
+.linea{position:relative;height:30px}
+.linea input{position:absolute;inset:8px 0 auto;width:100%;margin:0;accent-color:var(--accent);height:14px}
+.tramos{position:absolute;left:0;right:0;top:0;height:6px;display:flex;gap:2px}
+.tramos button{border:0;padding:0;height:6px;border-radius:3px;background:var(--line);flex:var(--d) 1 0;min-width:4px}
+.tramos button.on{background:var(--obra)}
+.ctrl{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+.ctrl .play{width:46px;height:40px;justify-content:center;font-size:18px;background:var(--accent);color:var(--accent-fg);border-color:var(--accent)}
+.tiempo{font:500 14px var(--f-body);font-variant-numeric:tabular-nums;color:var(--muted);padding:0 4px}
+.cap-actual{font:600 16px var(--f-display);letter-spacing:.02em;min-width:0;flex:1;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+
+.caps[hidden]{display:none}
+.caps{position:fixed;z-index:6;top:0;right:0;bottom:0;width:min(380px,100%);background:var(--panel);border-left:1px solid var(--line);box-shadow:var(--sombra);
+  display:flex;flex-direction:column;padding:calc(14px + env(safe-area-inset-top,0px)) max(16px,env(safe-area-inset-right,0px)) calc(14px + env(safe-area-inset-bottom,0px)) 16px}
+.caps-cab{display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:8px}
+.caps-cab h2{font:600 24px var(--f-display);margin:0}
+.caps ol{list-style:none;margin:0;padding:0;overflow-y:auto;display:flex;flex-direction:column;gap:2px;min-height:0}
+.caps li{border-top:1px solid var(--line);padding:10px 0}
+.caps .ir{display:grid;grid-template-columns:auto 1fr auto;gap:10px;align-items:baseline;width:100%;text-align:left;border:0;background:none;padding:2px 0}
+.caps .ir .n{font:600 15px var(--f-display);color:var(--obra);font-variant-numeric:tabular-nums}
+.caps .ir .t{font:600 19px/1.15 var(--f-display)}
+.caps .ir .d{font-size:13px;color:var(--muted);font-variant-numeric:tabular-nums}
+.caps li.on .ir .t{color:var(--accent)}
+.caps details{margin:6px 0 0 26px;font-size:14px}
+.caps summary{color:var(--muted);font-size:13px;letter-spacing:.04em;text-transform:uppercase}
+.caps ul{margin:6px 0 0;padding-left:18px;color:var(--fg)}
+.caps ul li{border:0;padding:1px 0}
+.nota{font-size:12px;color:var(--muted);margin-top:auto;padding-top:10px}
+
+.tip{position:fixed;z-index:7;pointer-events:none;background:var(--panel);border:1px solid var(--line);border-radius:8px;padding:6px 10px;font-size:14px;box-shadow:var(--sombra);max-width:260px}
+.inicio{position:fixed;z-index:4;left:50%;top:44%;transform:translate(-50%,-50%);border:0;border-radius:999px;padding:16px 26px;
+  background:var(--accent);color:var(--accent-fg);font:600 22px var(--f-display);letter-spacing:.03em;box-shadow:var(--sombra)}
+.sin-textos .leyenda{display:none}
+
+/* caminata por dentro */
+.paseo[hidden]{display:none}
+.caminando .leyenda,.caminando .player,.caminando .inicio,.caminando #bCaps{display:none}
+.paseo-top{position:fixed;z-index:6;left:max(12px,env(safe-area-inset-left,0px));right:max(12px,env(safe-area-inset-right,0px));
+  top:calc(70px + env(safe-area-inset-top,0px));display:flex;gap:8px;align-items:center;flex-wrap:wrap;pointer-events:none}
+.paseo-top>*{pointer-events:auto}
+.donde{background:var(--velo);backdrop-filter:blur(8px);border:1px solid var(--line);border-left:4px solid var(--obra);border-radius:10px;padding:6px 12px;box-shadow:var(--sombra)}
+.donde b{font:600 19px/1.1 var(--f-display);display:block}
+.donde span{font-size:12px;color:var(--muted)}
+.paseo-top select{border:1px solid var(--line);background:var(--panel);border-radius:8px;padding:7px 10px;font-size:14px;max-width:210px}
+#mini{position:fixed;z-index:6;right:max(12px,env(safe-area-inset-right,0px));top:calc(132px + env(safe-area-inset-top,0px));
+  width:188px;height:168px;background:var(--velo);backdrop-filter:blur(8px);border:1px solid var(--line);border-radius:10px;box-shadow:var(--sombra);touch-action:none}
+.joy{position:fixed;z-index:6;left:max(18px,env(safe-area-inset-left,0px));bottom:calc(18px + env(safe-area-inset-bottom,0px));width:132px;height:132px;border-radius:50%;
+  background:color-mix(in srgb,var(--panel) 70%,transparent);border:1px solid var(--line);box-shadow:var(--sombra);touch-action:none}
+.joy i{position:absolute;left:50%;top:50%;width:56px;height:56px;margin:-28px 0 0 -28px;border-radius:50%;background:var(--accent);opacity:.9;box-shadow:var(--sombra)}
+.ayuda{position:fixed;z-index:6;left:50%;transform:translateX(-50%);bottom:calc(20px + env(safe-area-inset-bottom,0px));max-width:min(92vw,520px);
+  background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:8px 12px;font-size:13px;box-shadow:var(--sombra);text-align:center}
+.mira{position:fixed;z-index:5;left:50%;top:50%;width:6px;height:6px;margin:-3px 0 0 -3px;border-radius:50%;background:#fff;box-shadow:0 0 0 1px rgba(0,0,0,.4);pointer-events:none}
+@media (max-width:640px){
+  .leyenda{left:16px;right:16px;width:auto;max-height:30vh;padding:8px 12px}
+  .leyenda h2{font-size:18px}
+  .leyenda p{font-size:12.5px;line-height:1.4}
+  .cap-actual{order:9;flex-basis:100%}
+  .cab h1{font-size:19px}
+  #mini{width:142px;height:128px;top:auto;bottom:calc(18px + env(safe-area-inset-bottom,0px))}
+  .ayuda{bottom:calc(160px + env(safe-area-inset-bottom,0px))}
+}
+@media (prefers-reduced-motion: reduce){*{transition:none!important}}
+</style>
+
+<div id="vista" aria-label="Modelo 3D de la habilitación"></div>
+
+<header class="cab">
+  <div class="tit"><h1>Preuniversitario Talca</h1><div class="sub">Habilitación · recorrido de la obra</div></div>
+  <button class="btn" id="bCaminar" aria-pressed="false" title="Recorrer la planta por dentro, a la altura de los ojos">Caminar</button>
+  <button class="btn" id="bCaps" aria-expanded="false" aria-controls="caps">Capítulos</button>
+</header>
+
+<button class="inicio" id="inicio">▶ Ver el recorrido</button>
+
+<section class="leyenda" id="leyenda" aria-live="polite">
+  <div class="num" id="lNum"></div>
+  <h2 id="lTit"></h2>
+  <p id="lTxt"></p>
+</section>
+
+<aside class="caps" id="caps" hidden>
+  <div class="caps-cab"><h2>Capítulos</h2><button class="btn" id="cCerrar">Cerrar</button></div>
+  <ol id="lista"></ol>
+  <div class="nota">Toca un capítulo para ir a él. Puedes pausar y girar el modelo con el dedo o el mouse en cualquier momento. «Caminar» te deja recorrer la planta por dentro.</div>
+</aside>
+
+<div class="paseo" id="paseo" hidden>
+  <div class="paseo-top">
+    <div class="donde" aria-live="polite"><b id="dNom">Hall</b><span id="dSup"></span></div>
+    <select id="irA" aria-label="Ir a un recinto"></select>
+    <button class="btn" id="bVel" aria-pressed="false" title="Caminar al doble de velocidad">Velocidad ×2</button>
+    <button class="btn prim" id="bSalir">Salir</button>
+  </div>
+  <canvas id="mini" aria-label="Mini plano: toca un punto para ir ahí"></canvas>
+  <div class="joy" id="joy" aria-label="Joystick: arrastra para avanzar y girar"><i id="joyK"></i></div>
+  <div class="ayuda" id="ayuda" hidden></div>
+  <div class="mira"></div>
+</div>
+
+<div class="tip" id="tip" hidden></div>
+
+<footer class="player">
+  <div class="linea">
+    <div class="tramos" id="tramos"></div>
+    <input type="range" id="barra" min="0" max="1000" step="1" value="0" aria-label="Línea de tiempo del recorrido">
+  </div>
+  <div class="ctrl">
+    <button class="btn" id="bAnt" aria-label="Capítulo anterior">⏮</button>
+    <button class="btn" id="bAtras" aria-label="Retroceder 10 segundos">↺ 10 s</button>
+    <button class="btn play" id="bPlay" aria-label="Reproducir">▶</button>
+    <button class="btn" id="bSig" aria-label="Capítulo siguiente">⏭</button>
+    <span class="tiempo" id="tiempo">0:00 / 0:00</span>
+    <span class="cap-actual" id="capActual"></span>
+    <button class="btn" id="bRepetir" aria-pressed="false" title="Repetir el capítulo actual en vez de seguir al siguiente">Repetir capítulo</button>
+    <button class="btn" id="bTextos" aria-pressed="true" title="Mostrar u ocultar los textos">Textos</button>
+  </div>
+</footer>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
+<script>
+"use strict";
+const num = (v, d = 2) => v.toLocaleString("es-CL", { minimumFractionDigits: d, maximumFractionDigits: d });
+const esc = s => String(s).replace(/[&<>"]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
+const INCLUYE = /*INCLUYE*/null;
+
+// ------------------------------------------------------------------ escena (geometría de sitio.py, metros del plano v3)
+// En el plano x va a la derecha e y hacia abajo; en la escena, x = x − CX y z = y − CY: mirar desde +z es mirar el plano.
+const S = /*SITIO*/null;
+const CX = 24.6, CY = 15.0;
+const vista = document.getElementById("vista");
+const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
+renderer.setPixelRatio(Math.min(2, window.devicePixelRatio || 1));
+vista.appendChild(renderer.domElement);
+const scene = new THREE.Scene();
+const camera = new THREE.PerspectiveCamera(42, 1, 0.05, 600);
+const controls = new THREE.OrbitControls(camera, renderer.domElement);
+controls.enableDamping = true; controls.maxPolarAngle = Math.PI * 0.49; controls.minDistance = 2; controls.maxDistance = 120;
+const cielo3 = new THREE.HemisphereLight(0xffffff, 0x8a8f86, 0.85); scene.add(cielo3);
+const sol = new THREE.DirectionalLight(0xffffff, 0.65); sol.position.set(-25, 45, 30); scene.add(sol);
+
+const G = {};
+["base", "existente", "pilares", "fachadas", "ejes", "limite", "traza", "murosB", "murosC", "murosD", "vanos", "recep", "marcos",
+ "piso", "cielo", "rotulos"].forEach(n => { G[n] = new THREE.Group(); scene.add(G[n]); });
+const COL = { losa: 0xb9bcb6, existente: 0xa9ada7, pilar: 0x8f938e, muro: 0xefe9dc, vidrio: 0x8fc1de, marco: 0x6f777d,
+  porc: 0xd9cfbb, cielo: 0xf7f6f1, meson: 0xb48b5e, silla: 0x3c4a54, naranjo: 0xe08a3c, puerta: 0x8a6544 };
+const mats = {};
+function mat(c, o = 1, extra = {}) { const k = c + "_" + o + JSON.stringify(extra); if (!mats[k]) mats[k] = new THREE.MeshLambertMaterial(Object.assign({ color: c, transparent: o < 1, opacity: o }, extra)); return mats[k]; }
+const picables = [];
+function nombrar(m, titulo) { m.userData = { titulo }; picables.push(m); return m; }
+const P3 = (x, y, h = 0) => new THREE.Vector3(x - CX, h, y - CY);
+function caja(x0, x1, y0, y1, h0, h1, material, grupo, titulo) {
+  const m = new THREE.Mesh(new THREE.BoxGeometry(Math.max(0.005, x1 - x0), Math.max(0.005, h1 - h0), Math.max(0.005, y1 - y0)),
+    typeof material === "number" ? mat(material) : material);
+  m.position.set((x0 + x1) / 2 - CX, (h0 + h1) / 2, (y0 + y1) / 2 - CY); grupo.add(m);
+  return titulo ? nombrar(m, titulo) : m;
+}
+function losa(poli, h, material, grupo, titulo, espesor = 0) {
+  const sh = new THREE.Shape(poli.map(([x, y]) => new THREE.Vector2(x - CX, -(y - CY))));
+  const g = espesor ? new THREE.ExtrudeGeometry(sh, { depth: espesor, bevelEnabled: false }) : new THREE.ShapeGeometry(sh);
+  const m = new THREE.Mesh(g, material); m.rotation.x = -Math.PI / 2; m.position.y = h; grupo.add(m);
+  return titulo ? nombrar(m, titulo) : m;
+}
+function muroEntre(a, b, e, h0, h1, material, grupo, titulo) {   // tabique de eje a → b (cualquier ángulo)
+  const L = Math.hypot(b[0] - a[0], b[1] - a[1]);
+  const m = new THREE.Mesh(new THREE.BoxGeometry(L, h1 - h0, e), material);
+  m.position.set((a[0] + b[0]) / 2 - CX, (h0 + h1) / 2, (a[1] + b[1]) / 2 - CY);
+  m.rotation.y = -Math.atan2(b[1] - a[1], b[0] - a[0]); grupo.add(m);
+  return titulo ? nombrar(m, titulo) : m;
+}
+function rotulo(txt, x, y, h, grupo, escala = 1, sub) {
+  const cv = document.createElement("canvas"), cx = cv.getContext("2d"), f = 56;
+  cx.font = "600 " + f + "px 'Barlow Condensed', system-ui, sans-serif"; const w1 = cx.measureText(txt).width;
+  cx.font = "500 34px 'IBM Plex Sans', system-ui, sans-serif"; const w2 = sub ? cx.measureText(sub).width : 0;
+  cv.width = Math.ceil(Math.max(w1, w2)) + 36; cv.height = sub ? 118 : 80;
+  cx.fillStyle = "rgba(247,248,245,.92)"; cx.fillRect(0, 0, cv.width, cv.height);
+  cx.fillStyle = "#1c2421"; cx.textBaseline = "middle"; cx.font = "600 " + f + "px 'Barlow Condensed', system-ui, sans-serif"; cx.fillText(txt, 18, 40);
+  if (sub) { cx.fillStyle = "#5b6862"; cx.font = "500 34px 'IBM Plex Sans', system-ui, sans-serif"; cx.fillText(sub, 18, 90); }
+  const sp = new THREE.Sprite(new THREE.SpriteMaterial({ map: new THREE.CanvasTexture(cv), depthTest: false }));
+  const alto = 0.9 * escala * cv.height / 80; sp.scale.set(alto * cv.width / cv.height, alto, 1);
+  sp.position.copy(P3(x, y, h)); sp.renderOrder = 10; grupo.add(sp); return sp;
+}
+function linea(pts, h, color, grupo, discontinua) {
+  const g = new THREE.BufferGeometry().setFromPoints(pts.map(([x, y]) => P3(x, y, h)));
+  const l = new THREE.Line(g, discontinua ? new THREE.LineDashedMaterial({ color, dashSize: 0.6, gapSize: 0.25 }) : new THREE.LineBasicMaterial({ color }));
+  if (discontinua) l.computeLineDistances(); grupo.add(l); return l;
+}
+
+// planta del edificio: losa gris en todo el nivel y la recepción existente (fuera de la obra)
+const xF = y => S.FACHADA_ORIENTE[0][0] + (S.FACHADA_ORIENTE[1][0] - S.FACHADA_ORIENTE[0][0]) * (y - S.FACHADA_ORIENTE[0][1]) / (S.FACHADA_ORIENTE[1][1] - S.FACHADA_ORIENTE[0][1]);
+const YS = S.Y_SUR, YN = S.LIMITE_NORTE[0][1];
+losa([[3.7, 0.3], [xF(0.3), 0.3], [xF(YS), YS], [3.7, YS]], -0.2, mat(COL.losa), G.base, null, 0.2);
+{ const [x0, x1, y0, y1] = S.EXISTENTE;
+  caja(x0, x1, y0, y1, 0, 0.02, mat(COL.existente), G.existente, "Recepción existente del edificio (fuera de la obra)");
+  rotulo("Recepción existente", (x0 + x1) / 2, (y0 + y1) / 2, 1.6, G.existente, 1.1, "fuera de la obra"); }
+// piso de la obra (porcelanato) y cielo: la planta habilitada, de las oficinas a la fachada oriente
+const PLANTA = [[10.05, 8.21], [20.67, 8.21], [20.67, 3.18], [23.59, 3.18], [23.59, YN], [xF(YN), YN], [xF(YS), YS], [9.46, YS]];
+function cuadricula(fondo, junta, px, lado) {          // textura de baldosa o de plancha: un paño de «lado» metros con su junta
+  const cv = document.createElement("canvas"); cv.width = cv.height = 256; const x = cv.getContext("2d");
+  x.fillStyle = fondo; x.fillRect(0, 0, 256, 256); x.fillStyle = junta; x.fillRect(0, 0, 256, px); x.fillRect(0, 0, px, 256);
+  const t = new THREE.CanvasTexture(cv); t.wrapS = t.wrapT = THREE.RepeatWrapping; t.repeat.set(1 / lado, 1 / lado);
+  t.anisotropy = renderer.capabilities.getMaxAnisotropy(); return t;
+}
+losa(PLANTA, 0.015, new THREE.MeshLambertMaterial({ map: cuadricula("#dcd2bf", "#b9ae99", 3, 0.6) }), G.piso, "Porcelanato 60 × 60 en toda la planta");
+const matCielo = new THREE.MeshLambertMaterial({ map: cuadricula("#f7f6f1", "#dcdad2", 2, 1.2), side: THREE.DoubleSide, transparent: true, opacity: 0.35, depthWrite: false, emissive: 0x9a9890 });
+losa(PLANTA, S.CIELO, matCielo, G.cielo, "Cielo nuevo a 3,00 (alto por confirmar)");
+
+// pilares existentes de 0,80
+S.PILARES.forEach(([x, y]) => caja(x, x + S.LADO_PILAR, y, y + S.LADO_PILAR, 0, S.CIELO + 0.4, mat(COL.pilar), G.pilares, "Pilar existente 0,80 × 0,80"));
+// ejes de los pilares: horizontales y girados 4,03°
+S.FILAS_EJES.forEach(y => linea([[3.7, y], [xF(y) + 1.2, y]], 0.03, 0x5b6862, G.ejes, true));
+for (let k = 0; k < 5; k++) {
+  const [x, y] = S.PILARES[5 + k], xc = x + 0.4, yc = y + 0.4;
+  linea([[xc + (yc - 0.3) * S.TAN, 0.3], [xc - (YS - yc) * S.TAN, YS]], 0.03, 0xc8372d, G.ejes, true);
+}
+rotulo("Ejes girados 4,03°", 6.2, 2.2, 1.0, G.ejes, 1);
+
+// muros perimetrales existentes (opacos): oriente inclinado, de 0,15 (de la cara interior a la línea gruesa del plano), y
+// sur de 0,20, continuo (el vano del plano es muro, Gonza 17-oct). El plano no dibuja ventanas en ellos
+const matPerim = mat(COL.existente);
+function perimetral(a, b, e, titulo) { muroEntre(a, b, e, 0, S.CIELO + 0.4, matPerim, G.fachadas, titulo); }
+{ const e = 0.15, n = Math.hypot(S.FACHADA_ORIENTE[1][0] - S.FACHADA_ORIENTE[0][0], S.FACHADA_ORIENTE[1][1] - S.FACHADA_ORIENTE[0][1]);
+  const ox = e / 2 * (S.FACHADA_ORIENTE[1][1] - S.FACHADA_ORIENTE[0][1]) / n;   // el muro crece hacia afuera desde la cara interior
+  perimetral([xF(0.76) + ox, 0.76], [xF(YS + 0.2) + ox, YS + 0.2], e, "Muro perimetral oriente existente"); }
+S.FACHADA_SUR.forEach(([x0, x1]) => perimetral([x0, YS + 0.1], [Math.min(x1, xF(YS)), YS + 0.1], 0.2, "Muro perimetral sur existente"));
+// borde norte segmentado del plano: no es tabique; se dibuja como un velo para confirmar qué hay
+{ const [[a, y], [b]] = S.LIMITE_NORTE; muroEntre([a, y], [xF(y), y], 0.03, 0, S.CIELO, mat(COL.naranjo, 0.12, { depthWrite: false, side: THREE.DoubleSide }), G.limite, "Borde segmentado del plano: por confirmar qué hay");
+  linea([[a, y], [xF(y), y]], 0.03, COL.naranjo, G.limite, true); }
+
+// tabiques de 3,00, por zona del Excel; los vanos se cortan: puertas de 2,10 y ventanas de 0,90 a 2,60
+const NOMBRE = {}; S.RECINTOS.forEach(r => NOMBRE[r[6]] = r[0]); NOMBRE["D.1"] = "Hall y entrada";
+const grupoDe = sec => G["muros" + sec[0]];
+const matMuro = mat(COL.muro);
+const tit = sec => "Tabique " + NOMBRE[sec] + " (" + sec + ".1)";
+S.MUROS.forEach(([x0, x1, y0, y1, sec]) => caja(x0, x1, y0, y1, 0, S.ALTO_MURO, matMuro, grupoDe(sec), tit(sec)));
+S.PUERTAS.forEach(([x0, x1, y0, y1, sec]) => caja(x0, x1, y0, y1, S.ALTO_PUERTA, S.ALTO_MURO, matMuro, grupoDe(sec), tit(sec)));
+S.VENTANAS.forEach(([x0, x1, y0, y1, sec]) => { caja(x0, x1, y0, y1, 0, S.ALFEIZAR, matMuro, grupoDe(sec), tit(sec)); caja(x0, x1, y0, y1, S.DINTEL, S.ALTO_MURO, matMuro, grupoDe(sec), tit(sec)); });
+{ const [[a, b]] = S.MURO_INCLINADO, cortes = S.CORTES_INCLINADO.concat([[b[1], null]]);
+  const xAt = y => a[0] + (b[0] - a[0]) * (y - a[1]) / (b[1] - a[1]);
+  for (let i = 0; i < cortes.length - 1; i++) { const [ya, sec] = cortes[i], yb = cortes[i + 1][0];
+    muroEntre([xAt(ya) - 0.06, ya], [xAt(yb) - 0.06, yb], 0.12, 0, S.ALTO_MURO, matMuro, G.murosB, "Tabique de fondo inclinado 1,7° · " + NOMBRE[sec] + " (" + sec + ".1)"); } }
+// guardapolvo de 0,10 en las dos caras de cada tabique (y bajo las ventanas); en las puertas no va
+const matGp = mat(0x8a7b67);
+S.MUROS.concat(S.VENTANAS).forEach(([x0, x1, y0, y1, sec]) => {
+  const ejeX = x1 - x0 > y1 - y0, e = 0.012;
+  if (ejeX) { caja(x0, x1, y0 - e, y0, 0, 0.1, matGp, G.murosD); caja(x0, x1, y1, y1 + e, 0, 0.1, matGp, G.murosD); }
+  else { caja(x0 - e, x0, y0, y1, 0, 0.1, matGp, G.murosD); caja(x1, x1 + e, y0, y1, 0, 0.1, matGp, G.murosD); }
+});
+// vanos: vidrio con marco en las ventanas, marco en las puertas
+S.VENTANAS.forEach(([x0, x1, y0, y1, sec]) => {
+  const ejeX = x1 - x0 > y1 - y0, nm = "Ventana " + num(ejeX ? x1 - x0 : y1 - y0) + " × 1,70 · " + NOMBRE[sec];
+  const cm = ejeX ? (y0 + y1) / 2 : (x0 + x1) / 2;
+  const b = (a0, a1, h0, h1, e, m) => ejeX ? caja(a0, a1, cm - e / 2, cm + e / 2, h0, h1, m, G.vanos, nm) : caja(cm - e / 2, cm + e / 2, a0, a1, h0, h1, m, G.vanos, nm);
+  const a0 = ejeX ? x0 : y0, a1 = ejeX ? x1 : y1, f = 0.05;
+  b(a0, a1, S.ALFEIZAR, S.DINTEL, 0.02, mat(COL.vidrio, 0.45, { depthWrite: false }));
+  b(a0, a1, S.ALFEIZAR, S.ALFEIZAR + f, 0.12, mat(COL.marco)); b(a0, a1, S.DINTEL - f, S.DINTEL, 0.12, mat(COL.marco));
+  b(a0, a0 + f, S.ALFEIZAR, S.DINTEL, 0.12, mat(COL.marco)); b(a1 - f, a1, S.ALFEIZAR, S.DINTEL, 0.12, mat(COL.marco));
+});
+S.PUERTAS.forEach(([x0, x1, y0, y1, sec, nm]) => {
+  const ejeX = x1 - x0 > y1 - y0, cm = ejeX ? (y0 + y1) / 2 : (x0 + x1) / 2, a0 = ejeX ? x0 : y0, a1 = ejeX ? x1 : y1, f = 0.05, n = nm + " · " + num(a1 - a0);
+  const b = (p, q, h0, h1, e, m) => ejeX ? caja(p, q, cm - e / 2, cm + e / 2, h0, h1, m, G.vanos, n) : caja(cm - e / 2, cm + e / 2, p, q, h0, h1, m, G.vanos, n);
+  b(a0, a1, S.ALTO_PUERTA - f, S.ALTO_PUERTA, 0.12, mat(COL.marco)); b(a0, a0 + f, 0, S.ALTO_PUERTA, 0.12, mat(COL.marco)); b(a1 - f, a1, 0, S.ALTO_PUERTA, 0.12, mat(COL.marco));
+});
+// Recepción (zona sin muros): mesones y sillas; marcos de dos pilares (por confirmar)
+{ const [x0, x1, y0, y1] = S.RECEPCION; linea([[x0, y0], [x1, y0], [x1, y1], [x0, y1], [x0, y0]], 0.03, 0x1d5c74, G.recep, true);
+  S.MESONES.forEach(([a, b, c, d]) => caja(a, b, c, d, 0, 0.75, mat(COL.meson), G.recep, "Mesón de la Recepción (mobiliario)"));
+  S.SILLAS.forEach(([x, y]) => { const s = new THREE.Mesh(new THREE.CylinderGeometry(0.24, 0.24, 0.46, 14), mat(COL.silla)); s.position.copy(P3(x, y, 0.23)); G.recep.add(nombrar(s, "Silla")); });
+  rotulo("Recepción", (x0 + x1) / 2, y0 - 0.2, 1.6, G.recep, 0.9, "zona sin muros"); }
+S.MARCOS.forEach(([t, [x0, x1, y0, y1]]) => caja(x0, x1, y0, y1, 0, S.ALTO_MURO, mat(COL.naranjo, 0.28, { depthWrite: false }), G.marcos, t));
+{ const [x0, x1, y0, y1] = S.MESON_PILAR; caja(x0, x1, y0, y1, 0, 0.9, mat(0xd9d9d4), G.marcos, "Mesón con lavaplatos junto al pilar (por confirmar)"); }
+
+// trazado: tabiques marcados en el piso, la línea maestra y el corrimiento de 0,56 en los pilares
+S.MUROS.concat(S.PUERTAS.map(p => p.slice(0, 5)), S.VENTANAS).forEach(([x0, x1, y0, y1]) => linea([[x0, y0], [x1, y0], [x1, y1], [x0, y1], [x0, y0]], 0.04, 0xffffff, G.traza));
+linea([[13.2, 20.12], [29.7, 20.12]], 0.05, 0x1d5c74, G.traza);
+rotulo("Línea maestra a escuadra", 25.2, 20.12, 0.9, G.traza, 0.85);
+[[29.68, 16.36], [29.12, 24.36]].forEach(([x, y]) => { caja(x - 0.35, x + 0.95, y - 0.05, y + 0.05, 0.05, 0.09, mat(0xc8372d), G.traza); });
+rotulo("se corre 0,56 en cada pilar", 33.4, 20.4, 0.9, G.traza, 0.75);
+
+// nombres de los recintos
+S.RECINTOS.forEach(([n, sup, x0, x1, y0, y1]) => { const xm = Math.min(x1, xF((y0 + y1) / 2)); rotulo(n.replace("Sala de Capacitación", "Sala"), (x0 + xm) / 2, (y0 + y1) / 2, 3.6, G.rotulos, 0.95, sup + " m²"); });
+rotulo("Hall", 25.4, 12.4, 3.6, G.rotulos, 0.95);
+
+
+// ------------------------------------------------------------------ capítulos de la película
+const T = (x, y, h = 0) => [x - CX, h, y - CY];        // punto del plano (x, y en metros) a la escena
+const k = (t, r, h, a) => ({ t, r, h, a });           // cuadro clave: objetivo, distancia, altura y ángulo (grados)
+const BASE = ["base", "existente", "pilares", "fachadas", "limite"];
+const CAPS = [
+  { n: "La planta hoy", dur: 8, ver: [...BASE, "ejes"],
+    kf: [k(T(24, 15), 40, 34, -25), k(T(24, 15), 36, 30, 12)],
+    txt: "Una planta libre de unos 30 × 26 m dentro de un edificio en uso, con 15 pilares de 0,80 y muros perimetrales existentes al oriente y al sur. La estructura está girada 4,03°: los ejes de los pilares (punto y raya) y la fachada oriente no son verticales. Se entra por una puerta doble desde la recepción existente." },
+  { n: "Trazado a escuadra", dur: 8, ver: [...BASE, "ejes", "traza"], anim: [["traza", "aparece", 0.05, 0.6]],
+    kf: [k(T(24, 17), 28, 26, -8), k(T(27, 19), 22, 20, 22)],
+    txt: "Todo se traza desde una línea maestra a escuadra (azul), nunca desde la fachada. Los tabiques van verticales y horizontales; donde siguen la línea de pilares, se corren 0,56 m en cada pilar, que esconde el escalón (marcas rojas). Solo las salas que tocan la fachada quedan con un lado inclinado." },
+  { n: "Oficinas y Guardar", dur: 8, ver: [...BASE, "traza", "murosB"], anim: [["murosB", "sube", 0.05, 0.75]],
+    kf: [k(T(12.2, 18), 17, 15, -48), k(T(12.2, 18.5), 15, 12, -15)],
+    txt: "Cinco oficinas y el Guardar en la columna de la izquierda, con tabiques de 3,00 de alto (criterio de Luciano). El muro de fondo va a 1,7°, por eso cada oficina es un poco más ancha abajo. La Oficina 03 rodea un pilar." },
+  { n: "Salas de capacitación", dur: 9, ver: [...BASE, "traza", "murosB", "murosC"], anim: [["murosC", "sube", 0.05, 0.8]],
+    kf: [k(T(27, 15), 40, 34, 6), k(T(27, 15.5), 36, 30, 30)],
+    txt: "Siete salas: la 01 y la 02 al norte; la 03, 04 y 05 contra la fachada oriente; la 06 y la 07 al centro. Los tabiques entre salas van de pilar a pilar (7,22) y el tabique hacia el hall se corre en cada fila de pilares." },
+  { n: "Hall, puertas y ventanas", dur: 9, ver: [...BASE, "murosB", "murosC", "murosD", "vanos", "recep", "marcos"],
+    anim: [["murosD", "sube", 0.02, 0.3], ["vanos", "aparece", 0.2, 0.55], ["recep", "aparece", 0.45, 0.8], ["marcos", "aparece", 0.6, 0.9]],
+    kf: [k(T(18.5, 11.5), 15, 12, -22), k(T(22, 17), 17, 13, 18)],
+    txt: "El hall une todo: la puerta doble de 2,00 con una ventana a cada lado y la Recepción, una zona sin muros con dos mesones y seis sillas. Puertas de 0,80 en las oficinas y de 0,95 en las salas; ventanas de 1,70 de alto hacia el hall. En naranjo, los marcos de dos pilares que falta confirmar." },
+  { n: "Pisos y cielos", dur: 8, ver: [...BASE, "murosB", "murosC", "murosD", "vanos", "recep", "marcos", "piso", "cielo"],
+    anim: [["piso", "aparece", 0.05, 0.4], ["cielo", "aparece", 0.45, 0.85]],
+    kf: [k(T(25, 15), 34, 30, 28), k(T(25, 15), 31, 26, -12)],
+    txt: "Porcelanato en toda la planta y cielo nuevo, como va en el presupuesto (por confirmar si se conservan los existentes). El plano no trae alturas: el cielo se dibujó a 3,00, la altura de los tabiques." },
+  { n: "La obra terminada", dur: 10, ver: [...BASE, "murosB", "murosC", "murosD", "vanos", "recep", "marcos", "piso", "rotulos"],
+    kf: [k(T(24.5, 15), 36, 30, -35), k(T(24.5, 15), 33, 27, 30), k(T(24.5, 15), 36, 30, 110)],
+    txt: "Así queda la habilitación: 7 salas, 5 oficinas, el Guardar y el hall con la Recepción. Toca «Caminar» para recorrerla por dentro, a la altura de los ojos." },
+];
+const LECTURA = 2;                                    // segundos quietos al final de cada capítulo para leer el texto
+const INI = []; let TOTAL = 0;
+CAPS.forEach(c => { INI.push(TOTAL); TOTAL += c.dur; });
+
+// ------------------------------------------------------------------ reproductor
+const $ = id => document.getElementById(id);
+let t = 0, jugando = false, manual = false, capAct = -1, repetir = false, mezcla = null;
+const fmt = s => Math.floor(s / 60) + ":" + String(Math.floor(s % 60)).padStart(2, "0");
+const capDe = s => { let i = 0; while (i < CAPS.length - 1 && s >= INI[i + 1]) i++; return i; };
+const ease = f => f * f * (3 - 2 * f);
+
+function camara(s) {
+  const i = capDe(s), c = CAPS[i], u = Math.min(1, Math.max(0, (s - INI[i]) / (c.dur - LECTURA))), n = c.kf.length - 1;
+  const x = u * n, j = Math.min(n - 1, Math.floor(x)), f = ease(x - j), A = c.kf[j], B = c.kf[j + 1];
+  const L = (a, b) => a + (b - a) * f;
+  const tg = new THREE.Vector3(L(A.t[0], B.t[0]), L(A.t[1], B.t[1]), L(A.t[2], B.t[2]));
+  const e = ESC > 1 ? ESC * (c.escMovil || 1) : 1;   // en celular se aleja
+  const r = L(A.r, B.r) * e, h = L(A.h, B.h) * e, a = L(A.a, B.a) * Math.PI / 180;
+  return { pos: tg.clone().add(new THREE.Vector3(r * Math.sin(a), h, r * Math.cos(a))), tg };
+}
+// lo que se construye en el capítulo: "sube" crece desde el piso, "cae" se posa desde arriba, "aparece" se funde desde
+// transparente y "muestra" lo enciende al llegar su turno
+const ANIMADOS = [...new Set(CAPS.flatMap(c => (c.anim || []).map(a => a[0])))];
+const opac0 = new Map();
+function funde(g, f) {
+  G[g].traverse(o => { if ((o.isMesh || o.isLine || o.isSprite) && o.material) {
+    if (!opac0.has(o.material)) opac0.set(o.material, { o: o.material.opacity, t: o.material.transparent });
+    const b = opac0.get(o.material); o.material.transparent = true; o.material.opacity = Math.max(0.02, b.o * f); } });
+}
+function sinFundir(g) { G[g].traverse(o => { if (o.material && opac0.has(o.material)) { const b = opac0.get(o.material); o.material.opacity = b.o; o.material.transparent = b.t; } }); }
+function obra(s) {
+  const i = capDe(s), c = CAPS[i], u = Math.min(1, Math.max(0, (s - INI[i]) / (c.dur - LECTURA)));
+  ANIMADOS.forEach(g => { G[g].scale.y = 1; G[g].position.y = 0; sinFundir(g); });
+  (c.anim || []).forEach(([g, tipo, d, h]) => {
+    const f = ease(Math.min(1, Math.max(0, (u - d) / (h - d)))), grupo = G[g];
+    if (tipo === "cae") { grupo.position.y = 6 * (1 - f); return; }
+    if (tipo === "muestra") { grupo.visible = (u - d) > 0; return; }
+    if (tipo === "aparece") { funde(g, f); return; }
+    grupo.scale.y = Math.max(0.001, f); grupo.visible = f > 0.01;
+  });
+}
+function mostrar(i) {
+  const c = CAPS[i];
+  Object.keys(G).forEach(g => { G[g].visible = c.ver.includes(g); });
+  $("lNum").textContent = "Capítulo " + (i + 1) + " de " + CAPS.length;
+  $("lTit").textContent = c.n; $("lTxt").textContent = c.txt; $("capActual").textContent = (i + 1) + ". " + c.n;
+  document.querySelectorAll("#tramos button").forEach((b, j) => b.classList.toggle("on", j <= i));
+  document.querySelectorAll("#lista > li").forEach((li, j) => li.classList.toggle("on", j === i));
+}
+function ir(s, dejarManual) {
+  t = Math.max(0, Math.min(TOTAL, s));
+  if (!dejarManual) { manual = false; mezcla = null; }
+  pintar();
+}
+function pintar() {
+  const i = capDe(t);
+  if (i !== capAct) { capAct = i; mostrar(i); }
+  $("barra").value = Math.round(t / TOTAL * 1000);
+  $("tiempo").textContent = fmt(t) + " / " + fmt(TOTAL);
+}
+function play(v) {
+  if (v && t >= TOTAL - 0.01) t = 0;
+  jugando = v; $("inicio").hidden = true;
+  $("bPlay").textContent = v ? "❚❚" : "▶"; $("bPlay").setAttribute("aria-label", v ? "Pausar" : "Reproducir");
+  if (v && manual) { mezcla = { p: camera.position.clone(), g: controls.target.clone(), t0: performance.now() }; manual = false; }
+}
+
+// línea de tiempo con un tramo por capítulo
+$("tramos").innerHTML = CAPS.map((c, i) => `<button style="--d:${c.dur}" title="${i + 1}. ${esc(c.n)}" aria-label="Ir al capítulo ${i + 1}: ${esc(c.n)}" data-i="${i}"></button>`).join("");
+$("tramos").addEventListener("click", e => { const b = e.target.closest("button"); if (b) ir(INI[+b.dataset.i]); });
+$("barra").addEventListener("input", e => ir(e.target.value / 1000 * TOTAL));
+$("bPlay").onclick = () => play(!jugando);
+$("inicio").onclick = () => play(true);
+$("bAtras").onclick = () => ir(t - 10);
+$("bAnt").onclick = () => { const i = capDe(t); ir(t - INI[i] > 1.5 ? INI[i] : INI[Math.max(0, i - 1)]); };
+$("bSig").onclick = () => { const i = capDe(t); if (i < CAPS.length - 1) ir(INI[i + 1]); };
+$("bRepetir").onclick = () => { repetir = !repetir; $("bRepetir").setAttribute("aria-pressed", String(repetir)); };
+$("bTextos").onclick = () => { const on = document.body.classList.toggle("sin-textos"); $("bTextos").setAttribute("aria-pressed", String(!on)); tam(); };
+document.addEventListener("keydown", e => {
+  if (P.on) return;
+  if (e.target.closest("input,button,summary,select") && e.key === " ") return;
+  if (e.key === " ") { e.preventDefault(); play(!jugando); }
+  else if (e.key === "ArrowLeft") ir(t - 5);
+  else if (e.key === "ArrowRight") ir(t + 5);
+});
+
+// lista de capítulos con lo que incluye cada uno
+$("lista").innerHTML = CAPS.map((c, i) => {
+  const inc = (INCLUYE && INCLUYE[i]) || [];
+  return `<li><button class="ir" data-i="${i}"><span class="n">${String(i + 1).padStart(2, "0")}</span><span class="t">${esc(c.n)}</span><span class="d">${fmt(c.dur)}</span></button>
+    ${inc.length ? `<details><summary>Qué incluye</summary><ul>${inc.map(d => `<li>${esc(d)}</li>`).join("")}</ul></details>` : ""}</li>`;
+}).join("");
+$("lista").addEventListener("click", e => {
+  const b = e.target.closest(".ir"); if (!b) return;
+  ir(INI[+b.dataset.i]);
+  if (window.innerWidth < 900) abrirCaps(false);
+});
+function abrirCaps(v) { $("caps").hidden = !v; $("bCaps").setAttribute("aria-expanded", String(v)); }
+$("bCaps").onclick = () => abrirCaps($("caps").hidden);
+$("cCerrar").onclick = () => abrirCaps(false);
+
+// girar el modelo a mano pausa la película; al reanudar, la cámara vuelve suave al recorrido
+controls.addEventListener("start", () => { manual = true; if (jugando) play(false); });
+
+// tocar una pieza muestra su nombre
+const ray = new THREE.Raycaster(), ptr = new THREE.Vector2(); let abajo = null, tTip;
+renderer.domElement.addEventListener("pointerdown", e => abajo = [e.clientX, e.clientY]);
+renderer.domElement.addEventListener("pointerup", e => {
+  if (!abajo || Math.hypot(e.clientX - abajo[0], e.clientY - abajo[1]) > 6) return;
+  const r = renderer.domElement.getBoundingClientRect();
+  ptr.set((e.clientX - r.left) / r.width * 2 - 1, -((e.clientY - r.top) / r.height) * 2 + 1);
+  ray.setFromCamera(ptr, camera);
+  const vis = o => { for (let n = o; n; n = n.parent) if (!n.visible) return false; return true; };
+  const h = ray.intersectObjects(picables.filter(vis))[0], tip = $("tip");
+  if (!h || !h.object.userData.titulo) { tip.hidden = true; return; }
+  tip.textContent = h.object.userData.titulo.replace(/\s*\([A-E]\.\d+\.\d+\)/g, "");
+  tip.style.left = Math.min(window.innerWidth - 270, e.clientX + 12) + "px"; tip.style.top = Math.max(70, e.clientY - 40) + "px";
+  tip.hidden = false; clearTimeout(tTip); tTip = setTimeout(() => tip.hidden = true, 3000);
+});
+
+// ------------------------------------------------------------------ caminata por dentro
+// A la altura de los ojos (1,60), con choque contra tabiques, pilares, ventanas, muebles y fachadas; las puertas se
+// cruzan. Celular: joystick para avanzar y girar, arrastrar la escena para mirar. Escritorio: flechas o WASD, Shift
+// para ir más rápido y arrastrar para mirar. Mini plano con tu posición (tocar = ir ahí) y «Ir a» cada recinto.
+const P = { on: false, x: 0, y: 0, yaw: Math.PI, pitch: -0.05, v: 0, giro: 0, sala: null, joy: null, mira: null, vel: 1 };
+const OJO = 1.6, RADIO = 0.17;
+const RECTS = [...S.MUROS.map(m => m.slice(0, 4)), ...S.VENTANAS.map(m => m.slice(0, 4)),
+  ...S.PILARES.map(([x, y]) => [x, x + S.LADO_PILAR, y, y + S.LADO_PILAR]), ...S.MARCOS.map(m => m[1]), ...S.MESONES];
+const SEGS = [[S.MURO_INCLINADO[0][0], S.MURO_INCLINADO[0][1]], [[xF(YN), YN], [xF(YS), YS]], [[23.59, YN], [xF(YN), YN]], [[9.46, YS], [xF(YS), YS]]];
+function dentro(x, y) {                                // dentro de la planta habilitada
+  let c = false;
+  for (let i = 0, j = PLANTA.length - 1; i < PLANTA.length; j = i++) { const [xi, yi] = PLANTA[i], [xj, yj] = PLANTA[j];
+    if ((yi > y) !== (yj > y) && x < (xj - xi) * (y - yi) / (yj - yi) + xi) c = !c; }
+  return c;
+}
+function libre(x, y) {
+  if (!dentro(x, y)) return false;
+  for (const [a, b, c, d] of RECTS) if (x > a - RADIO && x < b + RADIO && y > c - RADIO && y < d + RADIO) return false;
+  for (const [[ax, ay], [bx, by]] of SEGS) { const dx = bx - ax, dy = by - ay, u = Math.max(0, Math.min(1, ((x - ax) * dx + (y - ay) * dy) / (dx * dx + dy * dy)));
+    if (Math.hypot(x - ax - u * dx, y - ay - u * dy) < RADIO + 0.06) return false; }
+  for (const [sx, sy] of S.SILLAS) if (Math.hypot(x - sx, y - sy) < RADIO + 0.24) return false;
+  return true;
+}
+// dónde estás
+const salaDe = (x, y) => {
+  for (const [n, sup, x0, x1, y0, y1] of S.RECINTOS) if (x > x0 && x < Math.min(x1, xF(y)) && y > y0 && y < y1) return [n, sup + " m² útiles"];
+  const [a, b, c, d] = S.SALA01_ALTA; if (x > a && x < b && y > c && y < d) return ["Sala de Capacitación 01", "58,88 m² útiles"];
+  const [e, f, g, h] = S.RECEPCION; if (x > e && x < f && y > g && y < h) return ["Recepción", "zona sin muros del hall"];
+  return ["Hall", "circulación"];
+};
+// «Ir a»: entras a cada recinto por su puerta, mirando hacia adentro
+const DESTINOS = [["Entrada", S.ENTRADA[0], S.ENTRADA[1], Math.PI]];
+S.RECINTOS.forEach(([n, sup, x0, x1, y0, y1, sec]) => {
+  const p = S.PUERTAS.find(q => q[4] === sec); if (!p) return;
+  const px = (p[0] + p[1]) / 2, py = (p[2] + p[3]) / 2, cx = (x0 + Math.min(x1, xF((y0 + y1) / 2))) / 2, cy = (y0 + y1) / 2;
+  const L = Math.hypot(cx - px, cy - py), ux = (cx - px) / L, uy = (cy - py) / L;
+  // el primer punto libre entrando por la puerta (de 1,0 a 4,0 m, y corriéndose a los lados si hay un pilar)
+  let q = null;
+  for (let d = 1.0; d <= 4.0 && !q; d += 0.25) for (const l of [0, 0.5, -0.5, 1, -1]) {
+    const x = px + ux * d - uy * l, y = py + uy * d + ux * l; if (libre(x, y)) { q = [x, y]; break; } }
+  if (q) DESTINOS.push([n.replace("Sala de Capacitación", "Sala"), q[0], q[1], Math.atan2(-ux, -uy)]);
+});
+DESTINOS.push(["Recepción", 18.5, 11.6, Math.PI]);
+$("irA").innerHTML = `<option value="">Ir a…</option>` + DESTINOS.map((d, i) => `<option value="${i}">${esc(d[0])}</option>`).join("");
+$("irA").onchange = e => { const d = DESTINOS[+e.target.value]; if (d) { P.x = d[1]; P.y = d[2]; P.yaw = d[3]; P.pitch = -0.05; P.v = 0; } e.target.value = ""; e.target.blur(); };
+
+// mini plano
+const mini = $("mini"), mctx = mini.getContext("2d"), MB = [8.8, 40.6, 1.2, 28.8];
+let mEsc = 1, mOx = 0, mOy = 0;
+function miniTam() {
+  const r = mini.getBoundingClientRect(), d = Math.min(2, window.devicePixelRatio || 1);
+  mini.width = Math.round(r.width * d); mini.height = Math.round(r.height * d);
+  mEsc = Math.min(mini.width / (MB[1] - MB[0]), mini.height / (MB[3] - MB[2])) * 0.94;
+  mOx = (mini.width - (MB[1] - MB[0]) * mEsc) / 2; mOy = (mini.height - (MB[3] - MB[2]) * mEsc) / 2;
+}
+const mx = x => mOx + (x - MB[0]) * mEsc, my = y => mOy + (y - MB[2]) * mEsc;
+function miniPintar() {
+  const c = mctx, oscuro = matchMedia("(prefers-color-scheme: dark)").matches && document.documentElement.dataset.theme !== "light";
+  c.clearRect(0, 0, mini.width, mini.height);
+  c.fillStyle = oscuro ? "#2a332f" : "#ece6d8"; c.beginPath(); PLANTA.forEach(([x, y], i) => i ? c.lineTo(mx(x), my(y)) : c.moveTo(mx(x), my(y))); c.closePath(); c.fill();
+  c.fillStyle = oscuro ? "#e4eae6" : "#1c2421";
+  S.MUROS.forEach(([a, b, d, e]) => c.fillRect(mx(a), my(d), Math.max(1, (b - a) * mEsc), Math.max(1, (e - d) * mEsc)));
+  c.strokeStyle = c.fillStyle; c.lineWidth = Math.max(1, 0.12 * mEsc);
+  SEGS.slice(0, 2).forEach(([[a, b], [d, e]]) => { c.beginPath(); c.moveTo(mx(a), my(b)); c.lineTo(mx(d), my(e)); c.stroke(); });
+  c.fillStyle = "#8a8f89"; S.PILARES.forEach(([x, y]) => c.fillRect(mx(x), my(y), 0.8 * mEsc, 0.8 * mEsc));
+  c.fillStyle = "#3d8fc4"; S.VENTANAS.forEach(([a, b, d, e]) => c.fillRect(mx(a), my(d), Math.max(1, (b - a) * mEsc), Math.max(1, (e - d) * mEsc)));
+  // tú: punto y cono de vista
+  const fx = -Math.sin(P.yaw), fy = -Math.cos(P.yaw), r = 3.2 * mEsc, an = 0.6, X = mx(P.x), Y = my(P.y);
+  const ang = Math.atan2(fy, fx);
+  c.fillStyle = "rgba(217,119,43,.32)"; c.beginPath(); c.moveTo(X, Y); c.arc(X, Y, r, ang - an, ang + an); c.closePath(); c.fill();
+  c.fillStyle = "#d9772b"; c.strokeStyle = "#fff"; c.lineWidth = 2; c.beginPath(); c.arc(X, Y, Math.max(4, 0.35 * mEsc), 0, 7); c.fill(); c.stroke();
+}
+mini.addEventListener("pointerdown", e => {
+  e.stopPropagation(); const r = mini.getBoundingClientRect(), d = mini.width / r.width;
+  const x = MB[0] + ((e.clientX - r.left) * d - mOx) / mEsc, y = MB[2] + ((e.clientY - r.top) * d - mOy) / mEsc;
+  if (libre(x, y)) { P.x = x; P.y = y; P.v = 0; } else ayuda("Ahí no se puede estar: elige un punto libre del piso.");
+});
+
+// joystick y mirada
+const joy = $("joy"), joyK = $("joyK");
+joy.addEventListener("pointerdown", e => { e.preventDefault(); joy.setPointerCapture(e.pointerId); const r = joy.getBoundingClientRect(); P.joy = { cx: r.left + r.width / 2, cy: r.top + r.height / 2, dx: 0, dy: 0 }; mover(e); });
+function mover(e) { if (!P.joy) return; const R = 50; let dx = e.clientX - P.joy.cx, dy = e.clientY - P.joy.cy; const d = Math.hypot(dx, dy); if (d > R) { dx *= R / d; dy *= R / d; }
+  P.joy.dx = dx / R; P.joy.dy = dy / R; joyK.style.transform = `translate(${dx}px,${dy}px)`; }
+joy.addEventListener("pointermove", mover);
+const soltar = () => { P.joy = null; joyK.style.transform = ""; };
+joy.addEventListener("pointerup", soltar); joy.addEventListener("pointercancel", soltar);
+renderer.domElement.addEventListener("pointerdown", e => { if (P.on) P.mira = [e.clientX, e.clientY]; });
+window.addEventListener("pointermove", e => {
+  if (!P.on || !P.mira) return;
+  P.yaw += (e.clientX - P.mira[0]) * 0.005; P.pitch = Math.max(-1.0, Math.min(1.0, P.pitch + (e.clientY - P.mira[1]) * 0.004));
+  P.mira = [e.clientX, e.clientY];
+});
+window.addEventListener("pointerup", () => { P.mira = null; });
+const teclas = {};
+window.addEventListener("keydown", e => { if (!P.on) return; if (e.key === "Escape") { salirPaseo(); return; } teclas[e.key.toLowerCase()] = true; if (e.key.startsWith("Arrow") || e.key === " ") e.preventDefault(); });
+window.addEventListener("keyup", e => { teclas[e.key.toLowerCase()] = false; });
+
+let tAyuda;
+function ayuda(txt, ms = 4500) { const el = $("ayuda"); el.textContent = txt; el.hidden = false; clearTimeout(tAyuda); tAyuda = setTimeout(() => el.hidden = true, ms); }
+function entrarPaseo() {
+  play(false); abrirCaps(false); P.on = true; document.body.classList.add("caminando"); $("paseo").hidden = false;
+  $("bCaminar").setAttribute("aria-pressed", "true"); controls.enabled = false;
+  const fin = CAPS[CAPS.length - 1].ver;
+  Object.keys(G).forEach(g => { G[g].visible = fin.includes(g) || g === "cielo"; G[g].scale.y = 1; G[g].position.y = 0; sinFundir(g); });
+  G.rotulos.visible = false; scene.traverse(o => { if (o.isSprite) o.visible = false; }); matCielo.opacity = 1; matCielo.transparent = false; matCielo.depthWrite = true;
+  [P.x, P.y] = S.ENTRADA; P.yaw = Math.PI; P.pitch = -0.05; P.v = 0; P.sala = null;
+  sol.intensity = 0.45; cielo3.intensity = 1.05; camera.fov = 74; tam(); miniTam();
+  const tactil = matchMedia("(pointer: coarse)").matches;
+  ayuda(tactil ? "Entras por la puerta doble. Usa el joystick para avanzar y girar; arrastra la escena para mirar." : "Entras por la puerta doble. Flechas o WASD para moverte (Shift, más rápido); arrastra para mirar. Esc para salir.", 6500);
+}
+function salirPaseo() {
+  P.on = false; document.body.classList.remove("caminando"); scene.traverse(o => { if (o.isSprite) o.visible = true; }); $("paseo").hidden = true; soltar();
+  $("bCaminar").setAttribute("aria-pressed", "false"); controls.enabled = true;
+  matCielo.opacity = 0.35; matCielo.transparent = true; matCielo.depthWrite = false;
+  sol.intensity = 0.65; cielo3.intensity = 0.85; camera.fov = 42; capAct = -1; pintar(); tam();
+  mezcla = { p: camera.position.clone(), g: new THREE.Vector3(...P3(P.x, P.y, 0.5).toArray()), t0: performance.now() };
+}
+$("bCaminar").onclick = () => P.on ? salirPaseo() : entrarPaseo();
+$("bSalir").onclick = salirPaseo;
+$("bVel").onclick = () => { P.vel = P.vel === 1 ? 2 : 1; $("bVel").setAttribute("aria-pressed", String(P.vel === 2)); };
+function pasoPaseo(dt) {
+  const k = teclas, corre = (k.shift ? 2.2 : 1) * P.vel;
+  let avance = (k.w || k.arrowup ? 1 : 0) - (k.s || k.arrowdown ? 1 : 0), giro = (k.a || k.arrowleft ? 1 : 0) - (k.d || k.arrowright ? 1 : 0), lado = (k.e ? 1 : 0) - (k.q ? 1 : 0);
+  if (P.joy) { avance = -P.joy.dy; giro = -P.joy.dx * 0.85; }
+  P.giro += (giro * 1.7 - P.giro) * Math.min(1, dt * 10); P.yaw += P.giro * dt;
+  P.v += (avance * 1.5 * corre - P.v) * Math.min(1, dt * 6);              // acelera y frena suave
+  const fx = -Math.sin(P.yaw), fy = -Math.cos(P.yaw), dx = fx * P.v * dt + fy * lado * 1.2 * dt * -1, dy = fy * P.v * dt + fx * lado * 1.2 * dt;
+  if (libre(P.x + dx, P.y + dy)) { P.x += dx; P.y += dy; }               // si choca, se desliza por el muro
+  else if (libre(P.x + dx, P.y)) P.x += dx;
+  else if (libre(P.x, P.y + dy)) P.y += dy;
+  else P.v *= 0.3;
+  camera.position.copy(P3(P.x, P.y, OJO)); camera.rotation.set(P.pitch, P.yaw, 0, "YXZ");
+  const [n, sup] = salaDe(P.x, P.y);
+  if (n !== P.sala) { P.sala = n; $("dNom").textContent = n.replace("Sala de Capacitación", "Sala"); $("dSup").textContent = sup; }
+  miniPintar();
+}
+
+// en pantallas angostas (celular vertical) la cámara se aleja según el ancho útil que deja el texto
+let ESC = 1;
+function tam() {
+  // escritorio: texto a la izquierda y la obra corrida a la derecha. Celular (angosto): texto en una franja sobre el
+  // reproductor, la obra centrada en el espacio libre de arriba y la cámara más lejos según lo angosta que es la pantalla
+  const W = window.innerWidth, H = window.innerHeight, movil = W <= 640, sinTxt = document.body.classList.contains("sin-textos");
+  const cab = document.querySelector(".cab").getBoundingClientRect().bottom, ley = $("leyenda");
+  let dx = 0, dy = 0;
+  if (!P.on) {
+    if (movil) { ley.style.top = "auto"; ley.style.bottom = (H - document.querySelector(".player").getBoundingClientRect().top + 8) + "px"; }
+    else { ley.style.bottom = ""; ley.style.top = cab + 12 + "px"; }   // bajo el encabezado, aunque ocupe dos líneas
+    const r = ley.getBoundingClientRect();
+    if (!sinTxt && !movil) dx = -(r.right / 2);
+    if (!sinTxt && movil) dy = H / 2 - (cab + r.top) / 2;
+    else if (movil) dy = H / 2 - (cab + document.querySelector(".player").getBoundingClientRect().top) / 2;
+  }
+  ESC = movil ? Math.min(2.2, Math.max(1, Math.pow(1.6 / (W / H), 0.6))) : 1;
+  renderer.setSize(W, H); camera.aspect = W / H; camera.setViewOffset(W, H, dx, dy, W, H); camera.updateProjectionMatrix();
+  if (P.on) miniTam();
+}
+window.addEventListener("resize", tam);
+
+let previo = performance.now();
+function bucle(ahora) {
+  const dt = Math.min(0.1, (ahora - previo) / 1000); previo = ahora;
+  if (P.on) { pasoPaseo(dt); renderer.render(scene, camera); requestAnimationFrame(bucle); return; }
+  if (jugando) {
+    t += dt;
+    const i = capDe(Math.min(t, TOTAL - 1e-6));
+    if (repetir && t >= INI[i] + CAPS[i].dur - 0.02) t = INI[i];
+    if (t >= TOTAL) { t = TOTAL; play(false); }
+    pintar();
+  }
+  if (!manual) {
+    const c = camara(Math.min(t, TOTAL - 1e-6));
+    if (mezcla) {
+      const f = ease(Math.min(1, (ahora - mezcla.t0) / 900));
+      camera.position.lerpVectors(mezcla.p, c.pos, f); controls.target.lerpVectors(mezcla.g, c.tg, f);
+      if (f >= 1) mezcla = null;
+    } else { camera.position.copy(c.pos); controls.target.copy(c.tg); }
+  }
+  obra(Math.min(t, TOTAL - 1e-6));
+  controls.update(); renderer.render(scene, camera); requestAnimationFrame(bucle);
+}
+tam(); ir(0); requestAnimationFrame(bucle);
+</script>
